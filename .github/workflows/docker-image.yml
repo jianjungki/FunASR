@@ -14,6 +14,7 @@ env:
   DOCKERFILE: examples/openai_api/Dockerfile
 
 jobs:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
