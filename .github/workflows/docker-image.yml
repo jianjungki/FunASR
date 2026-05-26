@@ -16,6 +16,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        device: [cpu, cuda]
 
     steps:
       - name: Checkout repository
@@ -46,8 +49,10 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            FUNASR_DEVICE=${{ matrix.device }}
           tags: |
-            ${{ env.IMAGE_NAME_DOCKERHUB }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME_DOCKERHUB }}:latest
-            ${{ env.IMAGE_NAME_GHCR }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME_GHCR }}:latest
+            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.device }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.device }}:latest
+            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.device }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.device }}:latest
