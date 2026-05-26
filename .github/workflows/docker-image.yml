@@ -18,7 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        device: [cpu, cuda]
+        include:
+          - device: cpu
+            image_suffix: cpu
+            base_image: python:3.10-slim
+          - device: cuda
+            image_suffix: gpu
+            base_image: nvidia/cuda:12.9.0-runtime-ubuntu22.04
 
     steps:
       - name: Checkout repository
@@ -51,8 +57,9 @@ jobs:
           push: true
           build-args: |
             FUNASR_DEVICE=${{ matrix.device }}
+            BASE_IMAGE=${{ matrix.base_image }}
           tags: |
-            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.device }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.device }}:latest
-            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.device }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.device }}:latest
+            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.image_suffix }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME_DOCKERHUB }}-openai-${{ matrix.image_suffix }}:latest
+            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.image_suffix }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME_GHCR }}-openai-${{ matrix.image_suffix }}:latest

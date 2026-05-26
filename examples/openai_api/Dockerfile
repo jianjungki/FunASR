@@ -1,6 +1,8 @@
-FROM python:3.10-slim
-
+ARG BASE_IMAGE=python:3.10-slim
 ARG FUNASR_DEVICE=cpu
+
+FROM ${BASE_IMAGE}
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -15,10 +17,12 @@ RUN apt-get update \
         ffmpeg \
         git \
         libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN python -m pip install --upgrade pip \
-    && pip install \
+        python3 \
+        python3-pip \
+        python-is-python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --upgrade pip \
+    && pip3 install \
         funasr \
         fastapi \
         "uvicorn[standard]" \
@@ -29,6 +33,6 @@ COPY server.py /app/server.py
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.getenv('FUNASR_PORT', '8000'), timeout=3).read()" || exit 1
+    CMD python3 -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.getenv('FUNASR_PORT', '8000'), timeout=3).read()" || exit 1
 
-CMD ["sh", "-c", "python server.py --host 0.0.0.0 --port ${FUNASR_PORT:-8000} --device ${FUNASR_DEVICE:-cpu} --model ${FUNASR_MODEL:-sensevoice}"]
+CMD ["sh", "-c", "python3 server.py --host 0.0.0.0 --port ${FUNASR_PORT:-8000} --device ${FUNASR_DEVICE:-cpu} --model ${FUNASR_MODEL:-sensevoice}"]
