@@ -6,6 +6,7 @@ FunASR is useful far beyond a single offline transcription command. This page co
 
 | Goal | Start here | Why it matters |
 |---|---|---|
+| Try FunASR in a browser | [Colab quickstart](../examples/colab/) | Run a public sample and upload your own audio before setting up a local environment. |
 | Transcribe one file locally | [README quick start](../README.md#quick-start) and [model selection guide](./model_selection.md) | Verify install, model choice, and model download in minutes. |
 | Compare accuracy and speed | [Benchmark report](https://modelscope.github.io/FunASR/benchmark.html) | Reproduce the 184-file long-audio benchmark before choosing a model. |
 | Migrate from Whisper/cloud ASR | [Migration guide](./migration_from_whisper.md) | Map existing pipelines to FunASR, benchmark representative audio, and plan a safe rollout. |
@@ -41,7 +42,7 @@ Recommended next steps:
 - For browser upload or microphone demos, start from the [Gradio browser demo](../examples/openai_api/GRADIO.md).
 - For Node.js or Next.js services, start from the [JavaScript/TypeScript recipes](../examples/openai_api/JAVASCRIPT.md).
 - For cluster services, start from the [Kubernetes deployment template](../examples/openai_api/kubernetes/).
-- Add authentication and network controls at your service boundary.
+- Add authentication and network controls at your service boundary; start from the [security and gateway guide](../examples/openai_api/SECURITY.md).
 - Record model name, device, driver, and audio duration in bug reports and benchmarks.
 
 ### Agent speech input

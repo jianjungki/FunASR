@@ -6,6 +6,7 @@ Use this page to choose the shortest deployment path for a product, demo, benchm
 
 | Path | Best for | Start here | Operational notes |
 |---|---|---|---|
+| Colab notebook | Browser smoke tests, first evaluation, shareable demos | [Colab quickstart](../examples/colab/) | No local setup; first run downloads model files, GPU runtime is faster. |
 | Python API | Notebooks, offline jobs, first model evaluation | [README quick start](../README.md#quick-start) | Lowest ceremony; caller owns batching, retries, and files. |
 | OpenAI-compatible API | Private speech API, agents, Dify/LangChain/AutoGen-style clients | [OpenAI API example](../examples/openai_api/) | Easiest integration for apps that already support OpenAI audio APIs. |
 | Docker Compose API | Reproducible local smoke test or small internal service | [OpenAI API Docker docs](../examples/openai_api/#docker-deployment) | CPU by default; adapt the image before using CUDA in containers. |
@@ -21,11 +22,11 @@ Use this page to choose the shortest deployment path for a product, demo, benchm
 
 ### I want to try FunASR in five minutes
 
-Use the Python API from the README. It is the shortest route for validating installation, model download, device selection, and basic output shape. If you are unsure which model to start with, use the [model selection guide](./model_selection.md).
+Use the [Colab quickstart](../examples/colab/) when you want a browser-only smoke test, or use the Python API from the README for local work. It is the shortest route for validating installation, model download, device selection, and basic output shape. If you are unsure which model to start with, use the [model selection guide](./model_selection.md).
 
 ### I want a local replacement for cloud transcription
 
-Use the OpenAI-compatible API. It exposes `/v1/audio/transcriptions`, `/v1/models`, `/health`, and Swagger docs. Start with `sensevoice`, run `examples/openai_api/smoke_test.sh` or `examples/openai_api/smoke_test.py`, then connect existing SDK or HTTP clients using [client recipes](../examples/openai_api/CLIENTS.md) and [JavaScript/TypeScript recipes](../examples/openai_api/JAVASCRIPT.md). For browser upload or microphone demos, use the [Gradio browser demo](../examples/openai_api/GRADIO.md). For Dify, n8n, HTTP nodes, or webhook workers, follow the [workflow recipes](../examples/openai_api/WORKFLOWS.md). For API gateways, developer portals, and schema-driven imports, use the [OpenAPI spec](../examples/openai_api/OPENAPI.md).
+Use the OpenAI-compatible API. It exposes `/v1/audio/transcriptions`, `/v1/models`, `/health`, and Swagger docs. Start with `sensevoice`, run `examples/openai_api/smoke_test.sh` or `examples/openai_api/smoke_test.py`, then connect existing SDK or HTTP clients using [client recipes](../examples/openai_api/CLIENTS.md) and [JavaScript/TypeScript recipes](../examples/openai_api/JAVASCRIPT.md). For browser upload or microphone demos, use the [Gradio browser demo](../examples/openai_api/GRADIO.md). For Dify, n8n, HTTP nodes, or webhook workers, follow the [workflow recipes](../examples/openai_api/WORKFLOWS.md). For API gateways, developer portals, and schema-driven imports, use the [OpenAPI spec](../examples/openai_api/OPENAPI.md). Before sharing the service, review the [security and gateway guide](../examples/openai_api/SECURITY.md).
 
 ### I want a repeatable container demo
 
@@ -57,7 +58,7 @@ Use the vLLM path for Fun-ASR-Nano. Benchmark with your own audio distribution a
 - Record FunASR version, model version, device, CUDA/PyTorch version, Docker image tag, and command line.
 - Run a short public smoke sample and at least one realistic private sample.
 - Log audio duration, model, device, latency, response format, and error type for every request.
-- Add upload-size limits, authentication, TLS, and rate limits before exposing an API outside a trusted network.
+- Add upload-size limits, authentication, TLS, and rate limits before exposing an API outside a trusted network; use the [security and gateway guide](../examples/openai_api/SECURITY.md) to plan the boundary.
 - For streaming, test silence, noise, overlapping speakers, long sessions, reconnects, and slow clients.
 - For benchmark claims, include input duration, hardware, batch size, model, runtime path, and whether model download/warmup time is excluded.
 

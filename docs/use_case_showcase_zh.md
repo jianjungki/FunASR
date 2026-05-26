@@ -6,6 +6,7 @@ FunASR 不只是一个离线转写命令。这个页面把常见的评测、部�
 
 | 目标 | 从这里开始 | 为什么重要 |
 |---|---|---|
+| 在浏览器里试用 FunASR | [Colab 快速体验](../examples/colab/README_zh.md) | 配置本地环境前，先跑公开样例并上传自己的音频。 |
 | 本地转写一个文件 | [README 快速开始](../README_zh.md#快速开始) 和 [模型选择指南](./model_selection_zh.md) | 几分钟内验证安装、模型选择、模型下载和首次推理。 |
 | 对比准确率和速度 | [性能评测报告](https://modelscope.github.io/FunASR/zh/benchmark.html) | 选型前先查看 184 条长音频评测结果。 |
 | 从 Whisper/云端 ASR 迁移 | [迁移指南](./migration_from_whisper_zh.md) | 将现有流水线映射到 FunASR，用代表性音频评测并规划安全上线。 |
@@ -41,7 +42,7 @@ curl http://localhost:8000/v1/audio/transcriptions \
 - 浏览器上传或麦克风 demo 可从 [Gradio 浏览器 Demo](../examples/openai_api/GRADIO_zh.md) 开始。
 - Node.js 或 Next.js 服务可从 [JavaScript/TypeScript 配方](../examples/openai_api/JAVASCRIPT_zh.md) 开始。
 - 集群内服务可从 [Kubernetes 部署模板](../examples/openai_api/kubernetes/README_zh.md) 开始。
-- 在服务边界增加鉴权、限流和网络访问控制。
+- 在服务边界增加鉴权、限流和网络访问控制；可从 [安全与网关指南](../examples/openai_api/SECURITY_zh.md) 开始。
 - 记录模型、设备、驱动、音频时长和处理耗时，便于复现问题和 benchmark。
 
 ### Agent 语音输入

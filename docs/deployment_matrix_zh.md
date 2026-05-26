@@ -6,6 +6,7 @@
 
 | 路径 | 适合场景 | 从这里开始 | 运维提示 |
 |---|---|---|---|
+| Colab Notebook | 浏览器 smoke test、首次评估、可分享 demo | [Colab 快速体验](../examples/colab/README_zh.md) | 不需要本地环境；首次运行会下载模型，GPU runtime 更快。 |
 | Python API | Notebook、离线任务、首次模型评测 | [README 快速开始](../README_zh.md#快速开始) | 最简单；调用方自己负责批处理、重试和文件管理。 |
 | OpenAI 兼容 API | 私有语音 API、Agent、Dify/LangChain/AutoGen 风格客户端 | [OpenAI API 示例](../examples/openai_api/README_zh.md) | 已支持 OpenAI audio API 的应用最容易接入。 |
 | Docker Compose API | 可复现本地 smoke test 或小型内部服务 | [OpenAI API Docker 文档](../examples/openai_api/README_zh.md) | 默认 CPU；容器里使用 CUDA 前需要先适配 CUDA-capable 镜像。 |
@@ -21,11 +22,11 @@
 
 ### 我想五分钟内试跑 FunASR
 
-使用 README 里的 Python API。它是验证安装、模型下载、设备选择和基础输出格式的最短路径。如果还不确定先用哪个模型，请看 [模型选择指南](./model_selection_zh.md)。
+如果只想在浏览器里 smoke test，可以先用 [Colab 快速体验](../examples/colab/README_zh.md)；本地工作再使用 README 里的 Python API。它是验证安装、模型下载、设备选择和基础输出格式的最短路径。如果还不确定先用哪个模型，请看 [模型选择指南](./model_selection_zh.md)。
 
 ### 我想替代云端转写服务
 
-使用 OpenAI 兼容 API。它提供 `/v1/audio/transcriptions`、`/v1/models`、`/health` 和 Swagger docs。先用 `sensevoice` 跑通 `examples/openai_api/smoke_test.sh` 或 `examples/openai_api/smoke_test.py`，再根据 [客户端配方](../examples/openai_api/CLIENTS.md) 和 [JavaScript/TypeScript 配方](../examples/openai_api/JAVASCRIPT_zh.md) 接入 SDK 或 HTTP 客户端。浏览器上传或麦克风 demo 可使用 [Gradio 浏览器 Demo](../examples/openai_api/GRADIO_zh.md)。Dify、n8n、HTTP 节点或 webhook worker 可参考 [工作流配方](../examples/openai_api/WORKFLOWS_zh.md)。API 网关、开发者门户或按 schema 导入时可使用 [OpenAPI 规范](../examples/openai_api/OPENAPI_zh.md)。
+使用 OpenAI 兼容 API。它提供 `/v1/audio/transcriptions`、`/v1/models`、`/health` 和 Swagger docs。先用 `sensevoice` 跑通 `examples/openai_api/smoke_test.sh` 或 `examples/openai_api/smoke_test.py`，再根据 [客户端配方](../examples/openai_api/CLIENTS.md) 和 [JavaScript/TypeScript 配方](../examples/openai_api/JAVASCRIPT_zh.md) 接入 SDK 或 HTTP 客户端。浏览器上传或麦克风 demo 可使用 [Gradio 浏览器 Demo](../examples/openai_api/GRADIO_zh.md)。Dify、n8n、HTTP 节点或 webhook worker 可参考 [工作流配方](../examples/openai_api/WORKFLOWS_zh.md)。API 网关、开发者门户或按 schema 导入时可使用 [OpenAPI 规范](../examples/openai_api/OPENAPI_zh.md)。跨团队共享服务前，请先阅读 [安全与网关指南](../examples/openai_api/SECURITY_zh.md)。
 
 ### 我想要可复现的容器 demo
 
@@ -57,7 +58,7 @@ Fun-ASR-Nano 走 vLLM 路径。请用自己的音频分布做 benchmark，并关
 - 记录 FunASR 版本、模型版本、设备、CUDA/PyTorch 版本、Docker 镜像 tag 和启动命令。
 - 跑一个公开短音频 smoke sample，再跑至少一个真实私有样本。
 - 每次请求记录音频时长、模型、设备、延迟、响应格式和错误类型。
-- API 暴露到可信网络外之前，增加上传大小限制、鉴权、TLS 和限流。
+- API 暴露到可信网络外之前，增加上传大小限制、鉴权、TLS 和限流；可用 [安全与网关指南](../examples/openai_api/SECURITY_zh.md) 规划边界。
 - 流式场景需要测试静音、噪声、多人重叠、长连接、重连和慢客户端。
 - 发布 benchmark 结论时，说明输入时长、硬件、batch size、模型、运行路径，以及是否排除模型下载和 warmup 时间。
 

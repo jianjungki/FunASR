@@ -1,37 +1,37 @@
-# FunASR vLLM 推理引擎指南
+# FunASR vLLM Inference Engine Guide
 
-FunASR 集成 vLLM 高吞吐推理引擎，用于加速 LLM-based ASR 模型的自回归解码。支持离线批量推理、SDK 流式推理、生产级 WebSocket 实时服务三种模式。
+FunASR integrates the vLLM high-throughput inference engine to accelerate autoregressive decoding of LLM-based ASR models. Three modes are supported: offline batch inference, streaming SDK inference, and production-grade WebSocket real-time service.
 
 ---
 
-## 目录
+## Table of Contents
 
-1. [概述](#1-概述)
-2. [安装与环境](#2-安装与环境)
-3. [离线批量推理](#3-离线批量推理)
-4. [流式 SDK 推理](#4-流式-sdk-推理)
-5. [实时 WebSocket 服务](#5-实时-websocket-服务)
-6. [性能对比](#6-性能对比)
-7. [API 参考](#7-api-参考)
+1. [Overview](#1-overview)
+2. [Installation & Environment](#2-installation--environment)
+3. [Offline Batch Inference](#3-offline-batch-inference)
+4. [Streaming SDK Inference](#4-streaming-sdk-inference)
+5. [Real-time WebSocket Service](#5-real-time-websocket-service)
+6. [Performance Comparison](#6-performance-comparison)
+7. [API Reference](#7-api-reference)
 8. [FAQ](#8-faq)
 
 ---
 
-## 1. 概述
+## 1. Overview
 
-### 适用模型
+### Supported Models
 
-| 模型 | vLLM 支持 | 说明 |
-|------|-----------|------|
-| **FunASRNano** | ✓ | Qwen3-0.6B LLM，支持离线和流式 |
+| Model | vLLM Support | Notes |
+|-------|-------------|-------|
+| **FunASRNano** | ✓ | Qwen3-0.6B LLM, supports offline and streaming |
 | **LLMASR** | ✓ | Whisper + Qwen/Vicuna/LLaMA |
 | **GLMASR** | ✓ | GLM-ASR-Nano |
 | **QwenAudioWarp** | ✓ | Qwen-Audio |
-| Paraformer | ✗ | 非自回归模型（CIF predictor），无 LLM 解码 |
-| SenseVoice | ✗ | Whisper-like encoder-decoder，非 LLM |
-| Conformer/Transformer | ✗ | CTC/attention 解码，非 LLM |
+| Paraformer | ✗ | Non-autoregressive model (CIF predictor), no LLM decoding |
+| SenseVoice | ✗ | Whisper-like encoder-decoder, not LLM |
+| Conformer/Transformer | ✗ | CTC/attention decoding, not LLM |
 
-### 架构
+### Architecture
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -50,61 +50,62 @@ FunASR 集成 vLLM 高吞吐推理引擎，用于加速 LLM-based ASR 模型的�
 │                                    ┌──────────────┐    │
 │                                    │  vLLM Engine │    │
 │                                    │  (Qwen3 etc) │    │
-│                                    │  TP 并行加速  │    │
+│                                    │  TP parallel │    │
 │                                    └──────┬───────┘    │
 │                                           ▼            │
 │                                    Generated Text      │
 │                                                        │
-│  (可选) CTC Forced Alignment ──→ 字级别时间戳          │
+│  (Optional) CTC Forced Alignment ──→ Character-level   │
+│                                      timestamps        │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 三种使用模式
+### Three Usage Modes
 
-| 模式 | 入口 | 适用场景 |
-|------|------|---------|
-| [离线批量推理](#3-离线批量推理) | `AutoModelVLLM` / `FunASRNanoVLLM` | 大规模转写、批量处理 |
-| [流式 SDK 推理](#4-流式-sdk-推理) | `FunASRNanoStreamingVLLM` | 实时字幕展示（SDK 集成） |
-| [WebSocket 实时服务](#5-实时-websocket-服务) | `serve_realtime_ws.py` | 生产部署、多端接入 |
+| Mode | Entry Point | Use Case |
+|------|-------------|----------|
+| [Offline Batch Inference](#3-offline-batch-inference) | `AutoModelVLLM` / `FunASRNanoVLLM` | Large-scale transcription, batch processing |
+| [Streaming SDK Inference](#4-streaming-sdk-inference) | `FunASRNanoStreamingVLLM` | Real-time subtitles (SDK integration) |
+| [WebSocket Real-time Service](#5-real-time-websocket-service) | `serve_realtime_ws.py` | Production deployment, multi-client access |
 
 ---
 
-## 2. 安装与环境
+## 2. Installation & Environment
 
-### 依赖
+### Dependencies
 
 ```bash
 pip install funasr>=1.3.0
 pip install vllm>=0.12.0
 pip install safetensors tiktoken websockets regex
 
-# FunASR 开发模式安装（需要 auto_model_vllm）
+# FunASR development mode install (requires auto_model_vllm)
 cd /path/to/FunASR && pip install -e .
 ```
 
-### 硬件要求
+### Hardware Requirements
 
-| 配置 | 最低要求 | 推荐 |
-|------|---------|------|
-| GPU 显存 | 8GB | 16GB+ |
+| Configuration | Minimum | Recommended |
+|--------------|---------|-------------|
+| GPU Memory | 8GB | 16GB+ |
 | CUDA | 11.8 | 12.0+ |
-| GPU 数量 | 1 | 2+（tensor parallel） |
+| GPU Count | 1 | 2+ (tensor parallel) |
 
 ---
 
-## 3. 离线批量推理
+## 3. Offline Batch Inference
 
-适用于大规模音频转写、离线批量处理。vLLM 的批处理能力在此场景优势最大。
+Best for large-scale audio transcription and offline batch processing. vLLM's batching capability provides the greatest advantage in this scenario.
 
-### 通用接口（推荐）
+### Universal Interface (Recommended)
 
 ```python
 from funasr.auto.auto_model_vllm import AutoModelVLLM
 
 model = AutoModelVLLM(
     model="FunAudioLLM/Fun-ASR-Nano-2512",
-    hub="ms",                    # 或 "hf"
-    tensor_parallel_size=2,      # 多卡并行
+    hub="ms",                    # or "hf"
+    tensor_parallel_size=2,      # multi-GPU parallel
     gpu_memory_utilization=0.8,
 )
 
@@ -117,7 +118,7 @@ for r in results:
     print(f"[{r['key']}] {r['text']}")
 ```
 
-### 直接接口
+### Direct Interface
 
 ```python
 from funasr.models.fun_asr_nano.inference_vllm import FunASRNanoVLLM
@@ -128,53 +129,53 @@ engine = FunASRNanoVLLM.from_pretrained(
 )
 
 results = engine.generate(
-    inputs="wav.scp",  # 支持 scp/jsonl/文件列表
+    inputs="wav.scp",  # supports scp/jsonl/file list
     hotwords=["开放时间"],
     language="中文",
     max_new_tokens=512,
 )
 ```
 
-### 命令行
+### Command Line
 
 ```bash
 cd examples/industrial_data_pretraining/fun_asr_nano
 
-# 单文件
+# Single file
 python demo_vllm.py --input audio.wav --language 中文
 
-# 批量 + 多卡
+# Batch + multi-GPU
 python demo_vllm.py --input wav.scp --tensor-parallel-size 4 --batch-size 32
 
-# 带热词 + 保存结果
+# With hotwords + save results
 python demo_vllm.py --input audio.wav --hotwords 张三 北京 --output results.jsonl
 ```
 
 ---
 
-## 4. 流式 SDK 推理
+## 4. Streaming SDK Inference
 
-将音频按 720ms chunk 逐步处理，输出逐步稳定的识别结果。适用于 SDK 集成实时字幕场景。
+Processes audio in 720ms chunks incrementally, outputting progressively stable recognition results. Suitable for SDK-integrated real-time subtitle scenarios.
 
-### 设计原理
+### Design Principle
 
 ```
-音频流（720ms chunks）
-    │ 累积重编码（每个 chunk 包含从头到当前的全部音频）
+Audio stream (720ms chunks)
+    │ Cumulative re-encoding (each chunk contains all audio from start to current)
     ▼
-┌──────────────────────┐
-│ Stage 1: 前 10 chunk  │  ← 无 prev_text，批量生成
-│ 找到稳定输出          │
-└──────────┬───────────┘
+┌──────────────────────────┐
+│ Stage 1: First 10 chunks │  ← No prev_text, batch generation
+│ Find stable output       │
+└──────────┬───────────────┘
            ▼
-┌──────────────────────┐
-│ Stage 2: 后续 chunk   │  ← 用稳定输出作 prev_text
-└──────────┬───────────┘
+┌──────────────────────────┐
+│ Stage 2: Subsequent      │  ← Use stable output as prev_text
+└──────────┬───────────────┘
            ▼
-每个 chunk: [fixed 区域（确认）] + [8字 unfixed（可能变）]
+Each chunk: [fixed region (confirmed)] + [8-char unfixed (may change)]
 ```
 
-### 用法
+### Usage
 
 ```python
 from funasr.models.fun_asr_nano.inference_vllm_streaming import FunASRNanoStreamingVLLM
@@ -187,90 +188,90 @@ engine = FunASRNanoStreamingVLLM.from_pretrained(
 
 for result in engine.streaming_generate("audio.wav", language="中文"):
     if result["is_final"]:
-        print(f"最终: {result['text']}")
+        print(f"Final: {result['text']}")
     else:
-        print(f"[{result['audio_duration_ms']:.0f}ms] 确认: {result['fixed_text']}")
+        print(f"[{result['audio_duration_ms']:.0f}ms] Confirmed: {result['fixed_text']}")
 ```
 
-### 输出特性
+### Output Characteristics
 
-| 累积音频 | 输出质量 |
-|---------|---------|
-| < 1.5s | 空或噪声 |
-| 1.5-3.0s | 部分正确 |
-| > 3.0s | 准确输出 |
+| Accumulated Audio | Output Quality |
+|-------------------|---------------|
+| < 1.5s | Empty or noise |
+| 1.5-3.0s | Partially correct |
+| > 3.0s | Accurate output |
 
-> Note: `repetition_penalty=1.3` 内部硬编码，防止短 chunk 重复退化。
+> Note: `repetition_penalty=1.3` is hardcoded internally to prevent short-chunk repetition degradation.
 
 ---
 
-## 5. 实时 WebSocket 服务
+## 5. Real-time WebSocket Service
 
-生产级实时语音识别服务，集成 VAD 分句 + vLLM 推理 + 说话人分离 + 热词。
+Production-grade real-time speech recognition service integrating VAD segmentation + vLLM inference + speaker diarization + hotwords.
 
-### 推理逻辑
+### Inference Logic
 
-**核心设计：基于 VAD 端点逐段解码（非固定 chunk）**
+**Core design: VAD endpoint-based segment decoding (not fixed chunks)**
 
 ```
-音频流 ──→ StreamingVAD (60ms) ──→ 检测到端点 ──→ vLLM 解码整段
-                                │                      │
-                                │                      ▼
-                                │             locked_sentences（锁定）
-                                │                      │
-                                │                      ▼
-                                │             SPK assign（说话人分配）
-                                │
-                                └──→ 未结束 ──→ vLLM partial decode（每0.48s）
-                                                      │
-                                                      ▼
-                                               partial text（预览，会覆盖）
+Audio stream ──→ StreamingVAD (60ms) ──→ Endpoint detected ──→ vLLM decode segment
+                                    │                              │
+                                    │                              ▼
+                                    │                     locked_sentences (locked)
+                                    │                              │
+                                    │                              ▼
+                                    │                     SPK assign (speaker assignment)
+                                    │
+                                    └──→ Not ended ──→ vLLM partial decode (every 0.48s)
+                                                              │
+                                                              ▼
+                                                       partial text (preview, will be overwritten)
 ```
 
-**两条推理路径：**
+**Two inference paths:**
 
-| 路径 | 触发条件 | 输出 |
-|------|---------|------|
-| 确认段解码 | VAD 检测到静音端点 | 锁定到 sentences，永不改变 |
-| Partial 预览 | 每 0.48s + 新音频 ≥ 960ms | 临时文字，随时覆盖 |
+| Path | Trigger Condition | Output |
+|------|-------------------|--------|
+| Confirmed segment decode | VAD detects silence endpoint | Locked to sentences, never changes |
+| Partial preview | Every 0.48s + new audio ≥ 960ms | Temporary text, overwritten anytime |
 
-**动态 VAD 阈值：**
+**Dynamic VAD thresholds:**
 
-| 累积时长 | 静音阈值 | 效果 |
-|---------|---------|------|
-| ≤ 5s | 2.0s | 短句不切碎 |
-| 5-10s | 1.5s | 正常分句 |
-| 10-15s | 1.0s | 开始收紧 |
-| 15-30s | 0.8s | 较快切分 |
-| 30-45s | 0.4s | 防止过长 |
-| > 45s | 0.1s | 强制切分 |
+| Accumulated Duration | Silence Threshold | Effect |
+|---------------------|-------------------|--------|
+| ≤ 5s | 2.0s | Preserve short sentences |
+| 5-10s | 1.5s | Normal segmentation |
+| 10-15s | 1.0s | Start tightening |
+| 15-30s | 0.8s | Faster splitting |
+| 30-45s | 0.4s | Prevent overly long segments |
+| > 45s | 0.1s | Force split |
 
-**STOP 最终处理：**
-1. 剩余音频喂给 VAD（is_final=True）
-2. 强制结束当前在说话的段
-3. 全局 SPK 重聚类（修正说话人 ID）
-4. 返回 `is_final: true`
+**STOP final processing:**
+1. Feed remaining audio to VAD (is_final=True)
+2. Force-end currently speaking segment
+3. Global SPK re-clustering (correct speaker IDs)
+4. Return `is_final: true`
 
-### 部署
+### Deployment
 
 ```bash
 cd examples/industrial_data_pretraining/fun_asr_nano
 
-# 单卡
+# Single GPU
 CUDA_VISIBLE_DEVICES=0 python serve_realtime_ws.py --port 10095 --language 中文
 
-# 多卡
+# Multi-GPU
 CUDA_VISIBLE_DEVICES=0,1 python serve_realtime_ws.py \
     --port 10095 --tensor-parallel-size 2 --language 中文
 
-# 完整参数
+# Full parameters
 python serve_realtime_ws.py \
     --port 10095 \
     --model FunAudioLLM/Fun-ASR-Nano-2512 \
     --hub ms \
     --device cuda:0 \
     --decode-interval 0.48 \
-    --hotword-file 热词列表 \
+    --hotword-file hotword_list \
     --language 中文 \
     --dtype bf16 \
     --tensor-parallel-size 1 \
@@ -278,47 +279,47 @@ python serve_realtime_ws.py \
     --max-model-len 2048
 ```
 
-### 客户端
+### Clients
 
-| 客户端 | 用法 |
-|--------|------|
-| 浏览器 | 打开 `client_mic.html`（麦克风/文件/热词/说话人） |
+| Client | Usage |
+|--------|-------|
+| Browser | Open `client_mic.html` (microphone/file/hotwords/speakers) |
 | Python CLI | `python client_python.py --server ws://localhost:10095 --mic` |
-| 测试脚本 | `python client_test.py --server ws://localhost:10095 --file audio.wav` |
+| Test script | `python client_test.py --server ws://localhost:10095 --file audio.wav` |
 
-远程访问需 SSH 端口转发：`ssh -L 10095:localhost:10095 <server>`
+Remote access requires SSH port forwarding: `ssh -L 10095:localhost:10095 <server>`
 
-### WebSocket 协议
+### WebSocket Protocol
 
-**客户端 → 服务端：**
+**Client → Server:**
 
-| 消息 | 格式 | 说明 |
-|------|------|------|
-| 开始会话 | `"START"` | 初始化 session |
-| 设置热词 | `"HOTWORDS:词1,词2"` | 可选 |
-| 设置语种 | `"LANGUAGE:中文"` | 可选 |
-| 音频数据 | `bytes` | PCM16, 16kHz, mono |
-| 结束会话 | `"STOP"` | 触发最终解码 |
+| Message | Format | Description |
+|---------|--------|-------------|
+| Start session | `"START"` | Initialize session |
+| Set hotwords | `"HOTWORDS:word1,word2"` | Optional |
+| Set language | `"LANGUAGE:中文"` | Optional |
+| Audio data | `bytes` | PCM16, 16kHz, mono |
+| End session | `"STOP"` | Trigger final decoding |
 
-**服务端 → 客户端：**
+**Server → Client:**
 
 ```json
-// 事件
+// Events
 {"event": "started"}
-{"event": "hotwords_set", "hotwords": ["词1", "词2"]}
+{"event": "hotwords_set", "hotwords": ["word1", "word2"]}
 {"event": "language_set", "language": "中文"}
 {"event": "stopped"}
 
-// 实时结果
+// Real-time results
 {
-    "sentences": [{"text": "已确认", "start": 1700, "end": 5500, "spk": 0}],
-    "partial": "正在说...",
+    "sentences": [{"text": "confirmed text", "start": 1700, "end": 5500, "spk": 0}],
+    "partial": "currently speaking...",
     "partial_start_ms": 5800,
     "duration_ms": 7200,
     "is_final": false
 }
 
-// 最终结果
+// Final result
 {
     "sentences": [{"text": "...", "start": ..., "end": ..., "spk": ...}, ...],
     "partial": "",
@@ -328,7 +329,7 @@ python serve_realtime_ws.py \
 }
 ```
 
-**交互时序：**
+**Interaction sequence:**
 
 ```
 Client                          Server
@@ -339,17 +340,17 @@ Client                          Server
   │── "LANGUAGE:中文" ─────────→│
   │←─ {"event":"language_set"} ─│
   │── [audio bytes] ───────────→│
-  │←─ {sentences,partial} ──────│  (实时推送)
+  │←─ {sentences,partial} ──────│  (real-time push)
   │── [audio bytes] ───────────→│
   │←─ {sentences,partial} ──────│
   │── "STOP" ──────────────────→│
-  │←─ {sentences,is_final:true} │  (最终结果)
+  │←─ {sentences,is_final:true} │  (final result)
   │←─ {"event":"stopped"} ──────│
 ```
 
-### 热词文件
+### Hotword File
 
-默认文件名 `热词列表`（`--hotword-file` 指定），一行一个词：
+Default filename `hotword_list` (specified via `--hotword-file`), one word per line:
 
 ```
 张三
@@ -357,21 +358,21 @@ Client                          Server
 北京大学
 ```
 
-也可通过 WebSocket 动态设置：`HOTWORDS:词1,词2,词3`
+Can also be set dynamically via WebSocket: `HOTWORDS:word1,word2,word3`
 
 ---
 
-## 6. 性能对比
+## 6. Performance Comparison
 
-### 离线推理
+### Offline Inference
 
-| 配置 | 5.6s 音频延迟 | 相对加速 |
-|------|-------------|---------|
+| Configuration | 5.6s Audio Latency | Relative Speedup |
+|--------------|-------------------|-----------------|
 | PyTorch (baseline) | 0.89s | 1x |
 | vLLM 1-GPU | 0.30s | **3x** |
 | vLLM 2-GPU TP | ~0.20s | **4.5x** |
 
-### 批量吞吐
+### Batch Throughput
 
 | Batch Size | 1-GPU | 2-GPU | 4-GPU |
 |-----------|-------|-------|-------|
@@ -379,25 +380,25 @@ Client                          Server
 | 16 | ~4x | ~7x | ~12x |
 | 32 | ~5x | ~9x | ~15x |
 
-### WebSocket 实时服务
+### WebSocket Real-time Service
 
-| 指标 | 数值 |
-|------|------|
+| Metric | Value |
+|--------|-------|
 | RTF | < 0.08 |
-| 首字延迟 | ~480ms |
-| 30s 音频总耗时 | ~2.3s |
-| 并发 | 多 WebSocket 连接 |
+| First-word latency | ~480ms |
+| Total time for 30s audio | ~2.3s |
+| Concurrency | Multiple WebSocket connections |
 
 ### VAD + vLLM Pipeline
 
-| 场景 | PyTorch 串行 | vLLM 批量 | 加速 |
-|------|-------------|-----------|------|
-| 10 段 x 5s | ~9s | ~1.5s | **6x** |
-| 20 段 x 5s | ~18s | ~2.5s | **7x** |
+| Scenario | PyTorch Sequential | vLLM Batch | Speedup |
+|----------|-------------------|------------|---------|
+| 10 segments × 5s | ~9s | ~1.5s | **6x** |
+| 20 segments × 5s | ~18s | ~2.5s | **7x** |
 
 ---
 
-## 7. API 参考
+## 7. API Reference
 
 ### AutoModelVLLM
 
@@ -405,128 +406,127 @@ Client                          Server
 from funasr.auto.auto_model_vllm import AutoModelVLLM
 ```
 
-通用入口，自动检测模型类型并选择对应的 vLLM 实现。
+Universal entry point that automatically detects model type and selects the corresponding vLLM implementation.
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `model` | - | 模型名（hub）或本地路径 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `model` | - | Model name (hub) or local path |
 | `hub` | `"ms"` | `"ms"` / `"hf"` |
-| `device` | `"cuda:0"` | 音频编码器设备 |
-| `dtype` | `"bf16"` | 精度 |
-| `tensor_parallel_size` | `1` | vLLM GPU 并行数 |
-| `gpu_memory_utilization` | `0.8` | KV Cache 显存比例 |
-| `max_model_len` | `4096` | 最大序列长度 |
+| `device` | `"cuda:0"` | Audio encoder device |
+| `dtype` | `"bf16"` | Precision |
+| `tensor_parallel_size` | `1` | vLLM GPU parallel count |
+| `gpu_memory_utilization` | `0.8` | KV Cache memory ratio |
+| `max_model_len` | `4096` | Maximum sequence length |
 
 ### AutoModelVLLM.generate()
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `inputs` | - | 音频路径/列表/numpy/tensor |
-| `language` | `None` | 语种提示 |
-| `hotwords` | `None` | 热词列表 |
-| `itn` | `True` | 逆文本正则化 |
-| `max_new_tokens` | `512` | 最大生成 token |
-| `temperature` | `0.0` | 采样温度 |
-| `repetition_penalty` | `1.0` | 重复惩罚 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `inputs` | - | Audio path/list/numpy/tensor |
+| `language` | `None` | Language hint |
+| `hotwords` | `None` | Hotword list |
+| `itn` | `True` | Inverse text normalization |
+| `max_new_tokens` | `512` | Maximum generated tokens |
+| `temperature` | `0.0` | Sampling temperature |
+| `repetition_penalty` | `1.0` | Repetition penalty |
 
-**返回**: `[{"key": str, "text": str, "timestamps": [...]}]`
+**Returns**: `[{"key": str, "text": str, "timestamps": [...]}]`
 
 ### FunASRNanoStreamingVLLM.from_pretrained()
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `model` | `"FunAudioLLM/Fun-ASR-Nano-2512"` | 模型名或路径 |
-| `hub` | `"ms"` | 模型来源 |
-| `device` | `"cuda:0"` | 设备 |
-| `dtype` | `"bf16"` | 精度 |
-| `tensor_parallel_size` | `1` | GPU 并行数 |
-| `gpu_memory_utilization` | `0.8` | 显存比例 |
-| `max_model_len` | `2048` | 序列长度 |
-| `chunk_ms` | `720` | chunk 时长 |
-| `rollback_chars` | `8` | 回退字符数 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `model` | `"FunAudioLLM/Fun-ASR-Nano-2512"` | Model name or path |
+| `hub` | `"ms"` | Model source |
+| `device` | `"cuda:0"` | Device |
+| `dtype` | `"bf16"` | Precision |
+| `tensor_parallel_size` | `1` | GPU parallel count |
+| `gpu_memory_utilization` | `0.8` | Memory ratio |
+| `max_model_len` | `2048` | Sequence length |
+| `chunk_ms` | `720` | Chunk duration |
+| `rollback_chars` | `8` | Rollback character count |
 
 ### streaming_generate()
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `audio_input` | - | 音频路径/数据 |
-| `chunk_ms` | `720` | chunk 大小 |
-| `rollback_chars` | `8` | 回退字符 |
-| `hotwords` | `None` | 热词 |
-| `language` | `None` | 语种 |
-| `max_new_tokens` | `200` | 每 chunk 最大 token |
-| `temperature` | `0.0` | 采样温度 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `audio_input` | - | Audio path/data |
+| `chunk_ms` | `720` | Chunk size |
+| `rollback_chars` | `8` | Rollback characters |
+| `hotwords` | `None` | Hotwords |
+| `language` | `None` | Language |
+| `max_new_tokens` | `200` | Max tokens per chunk |
+| `temperature` | `0.0` | Sampling temperature |
 
 **Yields**: `{"text", "fixed_text", "is_final", "chunk_idx", "audio_duration_ms"}`
 
-> `repetition_penalty=1.3` 内部硬编码。
+> `repetition_penalty=1.3` is hardcoded internally.
 
-### serve_realtime_ws.py 参数
+### serve_realtime_ws.py Parameters
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--port` | `10095` | WebSocket 端口 |
-| `--model` | `FunAudioLLM/Fun-ASR-Nano-2512` | 模型 |
-| `--hub` | `ms` | 来源 |
-| `--device` | `cuda:0` | 设备 |
-| `--decode-interval` | `0.48` | partial 解码间隔（秒） |
-| `--hotword-file` | `热词列表` | 热词文件 |
-| `--language` | `None` | 语种 |
-| `--dtype` | `bf16` | 精度 |
-| `--tensor-parallel-size` | `1` | GPU 并行 |
-| `--gpu-memory-utilization` | `0.8` | 显存比例 |
-| `--max-model-len` | `2048` | 序列长度 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--port` | `10095` | WebSocket port |
+| `--model` | `FunAudioLLM/Fun-ASR-Nano-2512` | Model |
+| `--hub` | `ms` | Source |
+| `--device` | `cuda:0` | Device |
+| `--decode-interval` | `0.48` | Partial decode interval (seconds) |
+| `--hotword-file` | `hotword_list` | Hotword file |
+| `--language` | `None` | Language |
+| `--dtype` | `bf16` | Precision |
+| `--tensor-parallel-size` | `1` | GPU parallel |
+| `--gpu-memory-utilization` | `0.8` | Memory ratio |
+| `--max-model-len` | `2048` | Sequence length |
 
 ---
 
 ## 8. FAQ
 
-### Q: 首次启动为什么慢？
-vLLM 需要初始化 KV Cache 和 CUDA Graph warmup，约 60-90 秒。后续推理即时响应。
+### Q: Why is the first startup slow?
+vLLM needs to initialize KV Cache and perform CUDA Graph warmup, taking approximately 60-90 seconds. Subsequent inferences respond instantly.
 
-### Q: CUDA OOM 怎么办？
-- 减小 `gpu_memory_utilization`（如 0.6）
-- 增加 `tensor_parallel_size` 分摊到多卡
-- 减小 `max_model_len`
+### Q: How to handle CUDA OOM?
+- Reduce `gpu_memory_utilization` (e.g., 0.6)
+- Increase `tensor_parallel_size` to distribute across multiple GPUs
+- Reduce `max_model_len`
 
-### Q: Paraformer 能用 vLLM 吗？
-不能。Paraformer 是非自回归模型（CIF predictor），所有 token 并行生成，不使用 KV-cache。vLLM 只加速自回归 LLM 解码。
+### Q: Can Paraformer use vLLM?
+No. Paraformer is a non-autoregressive model (CIF predictor) where all tokens are generated in parallel without KV-cache. vLLM only accelerates autoregressive LLM decoding.
 
-### Q: WebSocket 服务和 streaming_generate 有什么区别？
+### Q: What's the difference between WebSocket service and streaming_generate?
 
-| | WebSocket 服务 | streaming_generate |
+| | WebSocket Service | streaming_generate |
 |---|---|---|
-| 分句 | VAD 自然端点 | 固定 720ms chunk |
-| 推理 | 每个 VAD 段整体解码 | 累积重编码全部音频 |
-| 准确率 | 更高 | 前 3s 较低 |
-| 场景 | 生产部署 | SDK 集成 |
+| Segmentation | VAD natural endpoints | Fixed 720ms chunks |
+| Inference | Decode entire VAD segment | Cumulative re-encode all audio |
+| Accuracy | Higher | Lower for first 3s |
+| Use case | Production deployment | SDK integration |
 
-### Q: 流式推理前几秒输出为空？
-正常。模型需要 ~3 秒累积音频才能产生有意义输出，这是模型特性而非 vLLM 限制。
+### Q: Why is output empty for the first few seconds of streaming?
+Normal. The model needs ~3 seconds of accumulated audio to produce meaningful output. This is a model characteristic, not a vLLM limitation.
 
-### Q: 支持哪些音频格式？
-wav、mp3、flac 等主流格式，采样率自动转为 16kHz。
+### Q: What audio formats are supported?
+wav, mp3, flac and other mainstream formats. Sample rate is automatically converted to 16kHz.
 
-### Q: 浏览器无法使用麦克风？
-Chrome 要求 HTTPS 或 localhost。远程服务器用 SSH 端口转发：`ssh -L 10095:localhost:10095 <server>`
+### Q: Browser cannot access microphone?
+Chrome requires HTTPS or localhost. For remote servers, use SSH port forwarding: `ssh -L 10095:localhost:10095 <server>`
 
-### Q: 多个并发连接会互相影响吗？
-不会。每个 WebSocket 连接有独立的 session（VAD/ASR 状态隔离）。vLLM 内部会自动调度。
+### Q: Will multiple concurrent connections interfere with each other?
+No. Each WebSocket connection has an independent session (VAD/ASR state isolation). vLLM handles scheduling internally.
 
 ---
 
-## 附录：DynamicStreamingVAD
+## Appendix: DynamicStreamingVAD
 
-`funasr.models.fsmn_vad_streaming.dynamic_vad.DynamicStreamingVAD` 是通用的动态阈值流式 VAD 封装，
-在 fsmn-vad 基础上根据当前语音段的累积时长动态调整静音切分阈值。
+`funasr.models.fsmn_vad_streaming.dynamic_vad.DynamicStreamingVAD` is a generic dynamic-threshold streaming VAD wrapper that adjusts silence splitting thresholds dynamically based on the accumulated duration of the current speech segment, built on top of fsmn-vad.
 
-### 设计动机
+### Design Motivation
 
-fsmn-vad 默认使用固定静音阈值（800ms）。实际场景中：
-- 短句（如"好的"）需要等更长的静音才切，否则会把一句话切碎
-- 长段（如会议发言 30s+）需要更快切分，否则 ASR 输入过长导致质量下降
+fsmn-vad uses a fixed silence threshold (800ms) by default. In practice:
+- Short utterances (e.g., "okay") need longer silence before splitting, otherwise sentences get fragmented
+- Long segments (e.g., 30s+ meeting speeches) need faster splitting, otherwise ASR input becomes too long and quality degrades
 
-### 用法
+### Usage
 
 ```python
 from funasr import AutoModel
@@ -534,36 +534,36 @@ from funasr.models.fsmn_vad_streaming.dynamic_vad import DynamicStreamingVAD
 
 vad_model = AutoModel(model="fsmn-vad", device="cuda:0")
 
-# 使用默认阈值配置
+# Use default threshold configuration
 vad = DynamicStreamingVAD(vad_model)
 
-# 或自定义阈值
+# Or customize thresholds
 vad = DynamicStreamingVAD(
     vad_model,
     silence_schedule=[
-        (3000, 1500),       # 累积 <=3s: 等 1.5s 静音
-        (10000, 800),       # 累积 3-10s: 等 0.8s
-        (float('inf'), 300), # 累积 >10s: 等 0.3s
+        (3000, 1500),       # accumulated <=3s: wait 1.5s silence
+        (10000, 800),       # accumulated 3-10s: wait 0.8s
+        (float('inf'), 300), # accumulated >10s: wait 0.3s
     ],
     speech_noise_thres=0.5,
 )
 ```
 
-#### 流式调用
+#### Streaming Call
 
 ```python
 import torch
 
-for audio_chunk in audio_stream:  # 实时音频流
+for audio_chunk in audio_stream:  # real-time audio stream
     segments = vad.feed(torch.from_numpy(audio_chunk).float())
     for seg in segments:
         print(f"Speech: {seg[0]}-{seg[1]}ms")
 
-# 结束时
+# At the end
 final_segments = vad.finalize()
 ```
 
-#### 非流式调用
+#### Non-streaming Call
 
 ```python
 segments = vad.process(full_audio_tensor)
@@ -571,32 +571,32 @@ for seg in segments:
     print(f"Speech: {seg[0]}-{seg[1]}ms")
 ```
 
-### 默认阈值配置
+### Default Threshold Configuration
 
-| 累积时长 | 静音阈值 | 说明 |
-|---------|---------|------|
-| ≤ 5s | 2.0s | 短句不切碎 |
-| 5-10s | 1.5s | 正常分句 |
-| 10-15s | 1.0s | 开始收紧 |
-| 15-30s | 0.8s | 较快切分 |
-| 30-45s | 0.4s | 防止过长 |
-| > 45s | 0.1s | 强制切分 |
+| Accumulated Duration | Silence Threshold | Description |
+|---------------------|-------------------|-------------|
+| ≤ 5s | 2.0s | Preserve short sentences |
+| 5-10s | 1.5s | Normal segmentation |
+| 10-15s | 1.0s | Start tightening |
+| 15-30s | 0.8s | Faster splitting |
+| 30-45s | 0.4s | Prevent overly long segments |
+| > 45s | 0.1s | Force split |
 
-### 参数
+### Parameters
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `vad_model` | - | FunASR AutoModel 加载的 fsmn-vad 实例 |
-| `chunk_size_ms` | 60 | VAD 内部处理 chunk 大小 |
-| `speech_noise_thres` | 0.5 | 语音/噪声判别阈值 |
-| `speech_to_sil_thres_ms` | 150 | 语音转静音基础时间 |
-| `silence_schedule` | 见上表 | 动态阈值配置 `[(上限ms, 静音ms), ...]` |
-| `sample_rate` | 16000 | 采样率 |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `vad_model` | - | fsmn-vad instance loaded via FunASR AutoModel |
+| `chunk_size_ms` | 60 | VAD internal processing chunk size |
+| `speech_noise_thres` | 0.5 | Speech/noise discrimination threshold |
+| `speech_to_sil_thres_ms` | 150 | Speech-to-silence base time |
+| `silence_schedule` | See table above | Dynamic threshold config `[(upper_ms, silence_ms), ...]` |
+| `sample_rate` | 16000 | Sample rate |
 
-### 属性
+### Properties
 
-| 属性 | 说明 |
-|------|------|
-| `vad.is_speaking` | 当前是否在语音状态中 |
-| `vad.current_duration_ms` | 当前段已累积时长 |
-| `vad.current_threshold_ms` | 当前使用的静音阈值 |
+| Property | Description |
+|----------|-------------|
+| `vad.is_speaking` | Whether currently in speech state |
+| `vad.current_duration_ms` | Current segment accumulated duration |
+| `vad.current_threshold_ms` | Current silence threshold in use |
