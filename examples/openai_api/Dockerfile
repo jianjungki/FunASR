@@ -1,5 +1,4 @@
 ARG BASE_IMAGE=python:3.10-slim
-ARG FUNASR_DEVICE=cpu
 
 FROM ${BASE_IMAGE}
 
@@ -7,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     FUNASR_MODEL=sensevoice \
-    FUNASR_DEVICE=${FUNASR_DEVICE} \
+    FUNASR_DEVICE=cpu \
     FUNASR_PORT=8000
 
 WORKDIR /app
@@ -22,7 +21,17 @@ RUN apt-get update \
         python-is-python3 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --upgrade pip \
-    && pip3 install \
+    && if [ "${FUNASR_DEVICE}" = "cuda" ]; then \
+        pip3 install --no-cache-dir \
+            torch==2.7.1 \
+            torchaudio==2.7.1 \
+            --index-url https://download.pytorch.org/whl/cu129; \
+    else \
+        pip3 install --no-cache-dir \
+            torch==2.7.1 \
+            torchaudio==2.7.1; \
+    fi \
+    && pip3 install --no-cache-dir \
         funasr \
         fastapi \
         "uvicorn[standard]" \
