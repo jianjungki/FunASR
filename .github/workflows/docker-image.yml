@@ -9,7 +9,7 @@ on:
 
 env:
   IMAGE_NAME_DOCKERHUB: jianjungki/funasr
-  IMAGE_NAME_GHCR: ghcr.io/${{ github.repository_owner }}/funasr
+  IMAGE_NAME_GHCR: ghcr.io/jianjungki/funasr
   BUILD_CONTEXT: examples/openai_api
   DOCKERFILE: examples/openai_api/Dockerfile
 
