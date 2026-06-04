@@ -33,6 +33,7 @@
 No local setup? Open the [Colab quickstart](./examples/colab/) to transcribe a public sample or upload your own audio in a browser.
 
 ```bash
+pip install torch torchaudio
 pip install funasr
 ```
 
@@ -51,6 +52,26 @@ result = model.generate(input="meeting.wav")
 ```
 
 That's it. **One model, one call** — VAD segmentation, speech recognition, punctuation, speaker diarization all happen automatically.
+
+### LLM-powered ASR: Fun-ASR-Nano
+
+For highest accuracy across 31 languages (including Chinese dialects), use [Fun-ASR-Nano](https://github.com/FunAudioLLM/Fun-ASR) — an LLM-based ASR combining SenseVoice encoder with Qwen3-0.6B decoder:
+
+```python
+from funasr import AutoModel
+
+model = AutoModel(model="FunAudioLLM/Fun-ASR-Nano-2512", vad_model="fsmn-vad", device="cuda")
+result = model.generate(input="meeting.wav")
+```
+
+With vLLM acceleration (16x faster, batch processing):
+
+```python
+from funasr.auto.auto_model_vllm import AutoModelVLLM
+
+model = AutoModelVLLM(model="FunAudioLLM/Fun-ASR-Nano-2512", tensor_parallel_size=1)
+results = model.generate(["audio1.wav", "audio2.wav"], language="auto")
+```
 
 > **Deploy as API server:** `funasr-server --device cuda` → OpenAI-compatible endpoint at localhost:8000
 >
@@ -124,7 +145,7 @@ pip install funasr
 git clone https://github.com/modelscope/FunASR.git && cd FunASR
 pip install -e ./
 ```
-Requirements: Python ≥ 3.8, PyTorch ≥ 1.13, torchaudio
+Requirements: Python ≥ 3.8. Install PyTorch + torchaudio first ([pytorch.org](https://pytorch.org/get-started/locally/)), then `pip install funasr`.
 
 </details>
 
@@ -182,8 +203,9 @@ result = model.generate(input="audio.wav", granularity="utterance")
 
 ```bash
 # OpenAI-compatible API (recommended)
-pip install funasr fastapi uvicorn python-multipart
-funasr-server --model sensevoice --device cuda
+pip install torch torchaudio
+pip install funasr vllm fastapi uvicorn python-multipart
+funasr-server --device cuda
 # → POST /v1/audio/transcriptions at localhost:8000
 ```
 
