@@ -37,13 +37,21 @@
 ```bash
 pip install torch torchaudio
 pip install funasr>=1.3.0
-pip install vllm>=0.12.0
+# Install vLLM separately after choosing a version compatible with your NVIDIA driver, CUDA runtime, and PyTorch wheel.
 pip install safetensors tiktoken websockets regex fastapi uvicorn python-multipart
 
 cd /path/to/FunASR && pip install -e .
 ```
 
 **Hardware**: GPU ≥ 8 GB VRAM, CUDA ≥ 11.8. 16 GB+ recommended.
+
+Install a PyTorch/torchaudio/vLLM combination that matches your NVIDIA driver and
+CUDA runtime. Do not blindly keep the newest wheel if it was built for a newer
+CUDA runtime than your driver supports; PyTorch can fail during CUDA
+initialization with `The NVIDIA driver on your system is too old` before FunASR
+starts. If that happens, reinstall compatible PyTorch, torchaudio, and vLLM
+wheels for the CUDA version reported by `nvidia-smi`, or update the NVIDIA
+driver first.
 
 ---
 
