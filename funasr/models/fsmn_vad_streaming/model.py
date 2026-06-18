@@ -973,6 +973,8 @@ class FsmnVADStreaming(nn.Module):
                 frontend=frontend,
                 cache=cache["frontend"],
                 is_final=kwargs["is_final"],
+                device=kwargs.get("device"),
+                npu_frontend=kwargs.get("npu_frontend", None),
             )
             time3 = time.perf_counter()
             meta_data["extract_feat"] = f"{time3 - time2:0.3f}"

@@ -957,7 +957,11 @@ class SenseVoiceSmall(nn.Module):
             time2 = time.perf_counter()
             meta_data["load_data"] = f"{time2 - time1:0.3f}"
             speech, speech_lengths = extract_fbank(
-                audio_sample_list, data_type=kwargs.get("data_type", "sound"), frontend=frontend
+                audio_sample_list,
+                data_type=kwargs.get("data_type", "sound"),
+                frontend=frontend,
+                device=kwargs.get("device"),
+                npu_frontend=kwargs.get("npu_frontend", None),
             )
             time3 = time.perf_counter()
             meta_data["extract_feat"] = f"{time3 - time2:0.3f}"

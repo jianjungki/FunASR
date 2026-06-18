@@ -76,10 +76,12 @@ RUN if [ "${BUILD_DEVICE}" = "cuda" ]; then \
     fi
 
 # ==========================================
-# 5. 安装业务层依赖 (FunASR & FastAPI 服务)
+# 5. 安装业务层依赖 (Private FunASR & FastAPI 服务)
 # ==========================================
+ARG FUNASR_GIT_URL=https://github.com/jianjungki/FunASR.git
+ARG FUNASR_GIT_REF=main
 RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ \
-    funasr \
+    "git+${FUNASR_GIT_URL}@${FUNASR_GIT_REF}" \
     fastapi \
     "uvicorn[standard]" \
     python-multipart

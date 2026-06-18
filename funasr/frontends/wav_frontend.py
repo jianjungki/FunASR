@@ -2,9 +2,12 @@
 # Part of the implementation is borrowed from espnet/espnet.
 from typing import Tuple
 import copy
+import logging
+import os
 import numpy as np
 import torch
 import torch.nn as nn
+import torchaudio
 import torchaudio.compliance.kaldi as kaldi
 from torch.nn.utils.rnn import pad_sequence
 
@@ -86,6 +89,31 @@ def apply_lfr(inputs, lfr_m, lfr_n):
     return LFR_outputs.clone().type(torch.float32)
 
 
+def _is_npu_device(device) -> bool:
+    if device is None:
+        return False
+    return str(device).startswith("npu")
+
+
+def _npu_frontend_mode(kwargs) -> str:
+    mode = kwargs.get("npu_frontend", None)
+    if mode is None:
+        mode = os.getenv("FUNASR_NPU_FRONTEND", "auto")
+    return str(mode).lower()
+
+
+def _should_try_npu_frontend(kwargs) -> bool:
+    mode = _npu_frontend_mode(kwargs)
+    if mode in {"0", "false", "off", "disable", "disabled"}:
+        return False
+    device = kwargs.get("device", getattr(kwargs.get("frontend", None), "device", None))
+    return _is_npu_device(device)
+
+
+def _npu_frontend_forced(kwargs) -> bool:
+    return _npu_frontend_mode(kwargs) in {"1", "true", "force", "forced", "on"}
+
+
 @tables.register("frontend_classes", "wav_frontend")
 @tables.register("frontend_classes", "WavFrontend")
 class WavFrontend(nn.Module):
@@ -141,6 +169,53 @@ class WavFrontend(nn.Module):
         self.snip_edges = snip_edges
         self.upsacle_samples = upsacle_samples
         self.cmvn = None if self.cmvn_file is None else load_cmvn(self.cmvn_file)
+        self.device = kwargs.get("device", None)
+
+    def _forward_npu_fbank(
+        self,
+        input: torch.Tensor,
+        input_lengths,
+        device,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size = input.size(0)
+        feats = []
+        feats_lens = []
+        frame_length_samples = max(int(self.fs * self.frame_length / 1000), 1)
+        frame_shift_samples = max(int(self.fs * self.frame_shift / 1000), 1)
+        n_fft = 1
+        while n_fft < frame_length_samples:
+            n_fft *= 2
+        window_name = "hann" if self.window == "povey" else self.window
+        window_fn = getattr(torch, f"{window_name}_window", torch.hann_window)
+        mel = torchaudio.transforms.MelSpectrogram(
+            sample_rate=self.fs,
+            n_fft=n_fft,
+            win_length=frame_length_samples,
+            hop_length=frame_shift_samples,
+            f_min=0.0,
+            f_max=float(self.fs) / 2,
+            n_mels=self.n_mels,
+            window_fn=window_fn,
+            power=2.0,
+            center=not self.snip_edges,
+            normalized=False,
+        ).to(device)
+        for i in range(batch_size):
+            waveform_length = int(input_lengths[i])
+            waveform = input[i][:waveform_length].to(device=device, dtype=torch.float32)
+            if self.upsacle_samples:
+                waveform = waveform * (1 << 15)
+            mat = mel(waveform).transpose(0, 1)
+            mat = torch.log(torch.clamp(mat, min=1e-10))
+            if self.lfr_m != 1 or self.lfr_n != 1:
+                mat = apply_lfr(mat, self.lfr_m, self.lfr_n)
+            if self.cmvn is not None:
+                mat = apply_cmvn(mat, self.cmvn)
+            feats.append(mat)
+            feats_lens.append(mat.size(0))
+        feats_lens = torch.as_tensor(feats_lens, device=device)
+        feats_pad = feats[0][None, :, :] if batch_size == 1 else pad_sequence(feats, batch_first=True, padding_value=0.0)
+        return feats_pad, feats_lens
 
     def output_size(self) -> int:
         """Output size."""
@@ -159,6 +234,15 @@ class WavFrontend(nn.Module):
                 input_lengths: Lengths of input.
                 **kwargs: Additional keyword arguments.
             """
+        device = kwargs.get("device", self.device)
+        if _should_try_npu_frontend({**kwargs, "device": device}):
+            try:
+                return self._forward_npu_fbank(input, input_lengths, device)
+            except Exception as exc:
+                if _npu_frontend_forced(kwargs):
+                    raise
+                logging.warning("NPU frontend failed, falling back to kaldi.fbank: %s", exc)
+
         batch_size = input.size(0)
         feats = []
         feats_lens = []

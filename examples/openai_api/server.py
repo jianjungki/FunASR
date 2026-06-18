@@ -31,6 +31,11 @@ app = FastAPI(title="FunASR OpenAI-Compatible API", version="1.0.0")
 
 MODEL_REGISTRY = {}
 DEVICE = "cpu"
+NPU_FRONTEND = os.getenv("FUNASR_NPU_FRONTEND", "auto")
+ENABLE_SPK = os.getenv("FUNASR_ENABLE_SPK", "0").lower() in {"1", "true", "yes", "on"}
+BATCH_SIZE_S = int(os.getenv("FUNASR_BATCH_SIZE_S", "300"))
+BATCH_SIZE_THRESHOLD_S = int(os.getenv("FUNASR_BATCH_SIZE_THRESHOLD_S", "60"))
+MERGE_LENGTH_S = int(os.getenv("FUNASR_MERGE_LENGTH_S", "15"))
 
 MODEL_CONFIGS = {
     "sensevoice": {
@@ -73,6 +78,9 @@ def load_model(model_name: str):
     from funasr import AutoModel
 
     cfg = MODEL_CONFIGS[model_name].copy()
+    if not ENABLE_SPK:
+        cfg.pop("spk_model", None)
+        cfg.pop("spk_mode", None)
     cfg["device"] = DEVICE
     cfg["disable_update"] = True
 
@@ -386,13 +394,18 @@ async def transcribe(
         asr_model = load_model(model)
         t0 = time.time()
 
+        rich_output = response_format in {"verbose_json", "srt", "vtt"}
         generate_kwargs = {
             "input": tmp_path,
             "batch_size": 1,
+            "batch_size_s": BATCH_SIZE_S,
+            "batch_size_threshold_s": BATCH_SIZE_THRESHOLD_S,
             "merge_vad": True,
-            "merge_length_s": 15,
-            "output_timestamp": True,
-            "sentence_timestamp": True,
+            "merge_length_s": MERGE_LENGTH_S,
+            "output_timestamp": rich_output,
+            "sentence_timestamp": rich_output,
+            "return_spk_res": ENABLE_SPK and rich_output,
+            "npu_frontend": NPU_FRONTEND,
         }
         if language:
             generate_kwargs["language"] = language
@@ -404,8 +417,10 @@ async def transcribe(
 
         text = clean_text(result[0]["text"])
 
-        audio_duration = get_audio_duration(tmp_path)
-        segments = build_segments(result[0], audio_duration)
+        segments = []
+        if rich_output:
+            audio_duration = get_audio_duration(tmp_path)
+            segments = build_segments(result[0], audio_duration)
 
         if response_format == "srt":
             return PlainTextResponse(format_srt(segments) if segments else text, media_type="text/plain; charset=utf-8")
@@ -449,26 +464,61 @@ async def health():
     return {
         "status": "ok",
         "device": DEVICE,
+        "npu_frontend": NPU_FRONTEND,
+        "enable_spk": ENABLE_SPK,
+        "batch_size_s": BATCH_SIZE_S,
+        "batch_size_threshold_s": BATCH_SIZE_THRESHOLD_S,
+        "merge_length_s": MERGE_LENGTH_S,
         "models_loaded": list(MODEL_REGISTRY.keys()),
         "models_available": list(MODEL_CONFIGS.keys()),
     }
 
 
 def main():
+    global DEVICE, NPU_FRONTEND, ENABLE_SPK, BATCH_SIZE_S, BATCH_SIZE_THRESHOLD_S, MERGE_LENGTH_S
+
     parser = argparse.ArgumentParser(description="FunASR OpenAI-Compatible API Server")
     parser.add_argument("--host", default="0.0.0.0", help="Bind host")
     parser.add_argument("--port", type=int, default=8000, help="Bind port")
     parser.add_argument("--device", default="cuda", help="Device: cuda, cpu, mps")
+    parser.add_argument(
+        "--npu-frontend",
+        default=os.getenv("FUNASR_NPU_FRONTEND", "auto"),
+        help="NPU frontend mode: auto, off, force",
+    )
+    parser.add_argument(
+        "--enable-spk",
+        action="store_true",
+        default=ENABLE_SPK,
+        help="Enable speaker diarization; slower, only useful for rich outputs",
+    )
+    parser.add_argument("--batch-size-s", type=int, default=BATCH_SIZE_S, help="Max ASR batch duration in seconds")
+    parser.add_argument(
+        "--batch-size-threshold-s",
+        type=int,
+        default=BATCH_SIZE_THRESHOLD_S,
+        help="Max single segment length in seconds before splitting ASR batches",
+    )
+    parser.add_argument("--merge-length-s", type=int, default=MERGE_LENGTH_S, help="Max merged VAD segment length in seconds")
     parser.add_argument("--model", default="sensevoice", help="Pre-load model at startup")
     args = parser.parse_args()
 
-    global DEVICE
     DEVICE = args.device
+    NPU_FRONTEND = args.npu_frontend
+    ENABLE_SPK = args.enable_spk
+    BATCH_SIZE_S = args.batch_size_s
+    BATCH_SIZE_THRESHOLD_S = args.batch_size_threshold_s
+    MERGE_LENGTH_S = args.merge_length_s
 
     load_model(args.model)
 
     logger.info(f"FunASR API server starting on http://{args.host}:{args.port}")
     logger.info(f"  Device: {DEVICE}")
+    logger.info(f"  NPU frontend: {NPU_FRONTEND}")
+    logger.info(f"  Speaker diarization: {ENABLE_SPK}")
+    logger.info(f"  Batch size seconds: {BATCH_SIZE_S}")
+    logger.info(f"  Batch threshold seconds: {BATCH_SIZE_THRESHOLD_S}")
+    logger.info(f"  VAD merge length seconds: {MERGE_LENGTH_S}")
     logger.info(f"  Models: {list(MODEL_CONFIGS.keys())}")
     logger.info(f"  Docs:   http://{args.host}:{args.port}/docs")
     uvicorn.run(app, host=args.host, port=args.port)
