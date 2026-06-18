@@ -128,6 +128,8 @@ def vtt_time(seconds: float) -> str:
 
 def timestamp_to_seconds(value) -> float:
     """Normalize FunASR timestamp values to seconds."""
+    if value is None or value == "":
+        return 0.0
     value = float(value)
     return value / 1000.0 if value > 1000 else value
 
@@ -193,8 +195,8 @@ def has_valid_segment_timing(segments, duration_seconds: Optional[float] = None)
     previous_start = -1.0
     for seg in segments:
         try:
-            start = float(seg.get("start", 0))
-            end = float(seg.get("end", 0))
+            start = timestamp_to_seconds(seg.get("start", 0))
+            end = timestamp_to_seconds(seg.get("end", 0))
         except (TypeError, ValueError):
             return False
         if start < 0 or end <= start or start < previous_start:
@@ -238,9 +240,11 @@ def build_segments(result_item, duration_seconds: Optional[float] = None, max_se
         text = clean_text(seg.get("text", ""))
         if not text:
             continue
+        start = timestamp_to_seconds(seg.get("start", seg.get("start_time", 0)))
+        end = timestamp_to_seconds(seg.get("end", seg.get("end_time", start)))
         segments.append({
-            "start": timestamp_to_seconds(seg.get("start", 0)),
-            "end": timestamp_to_seconds(seg.get("end", 0)),
+            "start": start,
+            "end": end,
             "text": text,
             "speaker": seg.get("spk", None),
         })
@@ -316,13 +320,14 @@ def format_vtt(segments) -> str:
 
 
 def get_audio_duration(path: str) -> Optional[float]:
-    """Return audio duration in seconds when torchaudio can read metadata."""
+    """Return audio duration in seconds when an audio backend can read the file."""
     try:
-        import torchaudio
+        import importlib
 
-        metadata = torchaudio.info(path)
-        if metadata.sample_rate and metadata.num_frames:
-            return metadata.num_frames / metadata.sample_rate
+        torchaudio = importlib.import_module("torchaudio")
+        waveform, sample_rate = torchaudio.load(path)
+        if sample_rate:
+            return waveform.shape[-1] / sample_rate
     except Exception as exc:
         logger.warning(f"Unable to read audio duration for subtitles: {exc}")
     return None
