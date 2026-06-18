@@ -618,11 +618,21 @@ class AutoModel:
             cfg["output_timestamp"] = True
             cfg["return_time_stamps"] = True
         kwargs = self.kwargs
+        key_list, data_list = prepare_data_iterator(
+            input, input_len=input_len, data_type=kwargs.get("data_type", None)
+        )
+        fs = kwargs["frontend"].fs if hasattr(kwargs["frontend"], "fs") else 16000
+        audio_fs = kwargs.get("fs", 16000)
+        audio_list = [
+            load_audio_text_image_video(input_i, fs=fs, audio_fs=audio_fs)
+            for input_i in data_list
+        ]
+
         # step.1: compute the vad model
         deep_update(self.vad_kwargs, cfg)
         beg_vad = time.time()
         res = self.inference(
-            input, input_len=input_len, model=self.vad_model, kwargs=self.vad_kwargs, **cfg
+            audio_list, input_len=input_len, model=self.vad_model, kwargs=self.vad_kwargs, **cfg
         )
         end_vad = time.time()
 
@@ -640,9 +650,6 @@ class AutoModel:
         batch_size_threshold_ms = int(kwargs.get("batch_size_threshold_s", 60)) * 1000
         kwargs["batch_size"] = batch_size
 
-        key_list, data_list = prepare_data_iterator(
-            input, input_len=input_len, data_type=kwargs.get("data_type", None)
-        )
         results_ret_list = []
         time_speech_total_all_samples = 1e-6
 
@@ -653,11 +660,9 @@ class AutoModel:
             else None
         )
         for i in range(len(res)):
-            key = res[i]["key"]
+            key = key_list[i] if i < len(key_list) else res[i]["key"]
             vadsegments = res[i]["value"]
-            input_i = data_list[i]
-            fs = kwargs["frontend"].fs if hasattr(kwargs["frontend"], "fs") else 16000
-            speech = load_audio_text_image_video(input_i, fs=fs, audio_fs=kwargs.get("fs", 16000))
+            speech = audio_list[i]
             speech_lengths = len(speech)
             n = len(vadsegments)
             data_with_index = [(vadsegments[i], i) for i in range(n)]
