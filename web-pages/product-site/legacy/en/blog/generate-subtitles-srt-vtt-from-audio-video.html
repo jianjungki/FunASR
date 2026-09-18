@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>You have a subtitle file. Is it ready? | FunASR</title>
+<meta name="description" content="Create SRT from a short Mandarin recording, convert it to WebVTT, and check timing against the audio.">
+<meta property="og:title" content="You have a subtitle file. Is it ready?"><meta property="og:description" content="Create SRT from a short Mandarin recording, convert it to WebVTT, and check timing against the audio."><meta property="og:type" content="article"><meta property="og:url" content="https://www.funasr.com/en/blog/generate-subtitles-srt-vtt-from-audio-video.html"><meta property="og:image" content="https://www.funasr.com/img/sensevoice-tags-waveform.png">
+<link rel="canonical" href="https://www.funasr.com/en/blog/generate-subtitles-srt-vtt-from-audio-video.html"><link rel="alternate" hreflang="zh" href="https://www.funasr.com/blog/generate-subtitles-srt-vtt-from-audio-video.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"You have a subtitle file. Is it ready?","description":"Create SRT from a short Mandarin recording, convert it to WebVTT, and check timing against the audio.","datePublished":"2026-06-18","dateModified":"2026-09-10","author":{"@type":"Organization","name":"FunASR"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://www.funasr.com/en/blog/generate-subtitles-srt-vtt-from-audio-video.html"}}</script>
+<style>body{margin:0;font-family:system-ui,sans-serif;color:#202827;line-height:1.8;background:#fff}*{box-sizing:border-box}.container{max-width:920px;margin:auto;padding:0 24px}a{color:#006a57;text-decoration:underline;text-underline-offset:.15em}.nav{padding:14px 0;border-bottom:1px solid #dce3df}.nav .container{display:flex;gap:20px;align-items:center}.nav-logo{font-weight:700}.nav-links{margin-left:auto}article{padding:48px 0 64px}h1{font-size:2rem;line-height:1.3;letter-spacing:0}h2{font-size:1.4rem;margin-top:36px;letter-spacing:0}.lead{font-size:1.1rem}.meta,figcaption{color:#515c56;font-size:.875rem}figure{margin:24px 0}figure img{display:block;max-width:100%;height:auto}code{overflow-wrap:anywhere}pre{padding:16px;background:#f3f6f5;border:1px solid #dce3df;border-radius:6px;font-size:.875rem;white-space:pre-wrap;overflow-wrap:anywhere}.legacy-page pre[data-example]{white-space:pre-wrap;overflow-wrap:anywhere;padding-top:54px}footer{padding:24px;border-top:1px solid #dce3df}@media(max-width:700px){.container{padding:0 20px}h1{font-size:1.6rem}.nav-links{display:none}}</style>
+</head><body>
+<nav class="nav"><div class="container"><a class="nav-logo" href="/en/">FunASR</a><div class="nav-links"><a href="/en/blog/">Blog</a></div><a href="/blog/generate-subtitles-srt-vtt-from-audio-video.html">中文</a><a href="/go/github">GitHub</a></div></nav>
+<article><div class="container">
+<h1>You have a subtitle file. Is it ready?</h1>
+<p class="meta">Revised 2026-09-10 · Application guide · 4 min read</p>
+<p class="lead" data-editorial="opening">For an interview, the hard part is not writing text into an SRT file. It is showing the right words at the right time. Start with a short Mandarin recording: create SRT, convert it to WebVTT, then listen back. A file that opens is only the first step.</p>
+<h2>Make one SRT you can review</h2>
+<p data-editorial="environment">Follow the <a data-installation-guide href="/en/docs/installation.html">installation and environment checks</a> for a CPU environment with matching, importable PyTorch and torchaudio. Then install <code>funasr==1.4.15</code> and run <code>python -m pip check</code>. Install FFmpeg separately and check <code>ffmpeg -version</code>. The first run downloads models: local inference does not mean the first installation is fully offline.</p>
+<p>Place a short recording you have permission to use at <code>audio.wav</code>. For video, extract the audio first. For multiple audio tracks, check that the selected track has the intended language. <code>-n</code> prevents overwriting an existing audio file:</p>
+<pre data-example="extract">ffmpeg -n -i video.mp4 -vn -ar 16000 -ac 1 audio.wav</pre>
+<p>Select the Mandarin Paraformer path explicitly. The CLI otherwise defaults to SenseVoice. This path combines Paraformer, FSMN-VAD and punctuation; it does not combine the language and timing capabilities of every model. Use a fresh output directory: the CLI overwrites subtitle files with the same name.</p>
+<pre data-example="transcribe">funasr audio.wav --model paraformer --device cpu --output-format srt --output-dir ./subs</pre>
+<p>The output is <code>./subs/audio.srt</code>; <code>--output-dir</code> takes a directory. SRT mode requests timestamps without an extra <code>--timestamps</code> flag. The default <code>readable</code> mode regroups cues. Use <code>--subtitle-segment-mode sentence</code> to retain model sentence boundaries. Both modes still need review.</p>
+<h2>Convert the same subtitles to VTT</h2>
+<p>The current FunASR CLI accepts <code>text/json/srt/tsv</code>, not <code>vtt</code>. Convert the existing SRT with FFmpeg instead of running recognition again:</p>
+<pre data-example="convert">ffmpeg -n -i ./subs/audio.srt ./subs/audio.vtt</pre>
+<p>These files came from this run of the official <a href="https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_zh.wav">short Chinese audio sample</a>, about 5.55 seconds long, on Linux CPU with FunASR 1.4.15 and PyTorch/torchaudio 2.10.0. This is a short-sample functional check, not a subtitle-accuracy, speed or long-video benchmark.</p>
+<figure><img src="/img/sensevoice-tags-waveform.png" width="1800" height="450" alt="Actual waveform of the Chinese input sample, with time in seconds and signal amplitude"><figcaption>The same input recording's actual waveform, not model confidence or proof of correct subtitle alignment.</figcaption></figure>
+<p><strong>SRT</strong></p>
+<pre data-example="srt-output">1
+00:00:00,880 --&gt; 00:00:05,195
+欢迎大家来体验达摩院推出的语音识别模型。</pre>
+<p><strong>Converted VTT</strong></p>
+<pre data-example="vtt-output">WEBVTT
+
+00:00.880 --&gt; 00:05.195
+欢迎大家来体验达摩院推出的语音识别模型。</pre>
+<p>The decimal separator changes and a <code>WEBVTT</code> header appears. That is a format conversion, not new recognition. It does not fix text, timing offsets, speaker errors or a missing final sentence.</p>
+<h2>Check three things before delivery</h2>
+<ol>
+<li><strong>Listen to the beginning, pauses and final sentence.</strong> Do cues appear too early, linger into the next sentence or miss the end? An exit code cannot answer that.</li>
+<li><strong>Review names, numbers and reading load.</strong> Automatic grouping does not guarantee a fixed character or duration limit for every cue. Without alignable timestamps, an original segment may remain intact.</li>
+<li><strong>Play the result in the target player or editor.</strong> Check that the subtitle file matches this version of the video. Adjust timing where needed before exporting the deliverable.</li>
+</ol>
+<p data-editorial="timing-boundary"><strong>SRT output is not proof of precise alignment.</strong> Without sentence information, the CLI may emit one cue over the overall timestamp range or even the full audio duration. Failed punctuation alignment may fall back to VAD segment boundaries. These are not word, phoneme or human-verified boundaries. See the <a href="https://github.com/modelscope/FunASR/blob/9fbb8a88329b71ce4fba073748b496014ad4f74b/funasr/cli.py">CLI implementation checked for this guide</a> for export and fallback behavior.</p>
+<p>This minimal path does not enable diarization. Adding <code>--spk</code> does not automatically put names or Speaker prefixes into CLI SRT output. For speaker-based clipping, use the separate <a href="/en/blog/funclip-v2-2-0-moss-speaker-clipping.html">FunClip / MOSS workflow</a>; anonymous labels are not real identities.</p>
+<p data-editorial="native-boundary">For text-only transcription, start with the <a href="/en/docs/native-transformers.html">native Fun-ASR-Nano Transformers guide</a>. Its text output does not provide the subtitle timestamps or diarization needed here. Do not substitute it and promise the same aligned subtitles.</p>
+<p data-editorial="next-step">Next, review your own short material with the <a href="/en/blog/funclip-v2-2-0-moss-speaker-clipping.html">FunClip subtitle and selection workflow</a>, starting with one manually checked clip.</p>
+</div></article><footer><div class="container">FunASR · Application guide</div></footer>
+</body></html>

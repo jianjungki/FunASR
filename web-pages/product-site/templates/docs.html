@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="docs-layout">
+  <aside class="docs-sidebar">
+    <a class="docs-home" href="{{ '/docs/' if language == 'zh' else '/en/docs/' }}">{{ '文档中心' if language == 'zh' else 'Documentation' }}</a>
+    <details class="docs-navigation" open>
+    <summary class="docs-navigation-toggle">{{ '浏览目录' if language == 'zh' else 'Browse topics' }}</summary>
+    {% for group in catalogue.groups %}
+    <details open>
+      <summary>{{ group[language] }}</summary>
+      <nav aria-label="{{ group[language] }}">
+      {% for page in catalogue.pages if page.group == group.id %}
+        <a href="{{ ('/docs/' if language == 'zh' else '/en/docs/') ~ page.slug ~ '.html' }}"{% if doc_entry and doc_entry.slug == page.slug %} aria-current="page"{% endif %}>{{ page[language] }}</a>
+      {% endfor %}
+      </nav>
+    </details>
+    {% endfor %}
+    <a href="{{ '/deploy/' if language == 'zh' else '/en/deploy/' }}">{{ '部署手册' if language == 'zh' else 'Deployment guides' }} &rarr;</a>
+    </details>
+  </aside>
+  <div class="docs-body">
+    <nav class="breadcrumbs" aria-label="{{ '面包屑' if language == 'zh' else 'Breadcrumbs' }}"><a href="{{ '/' if language == 'zh' else '/en/' }}">FunASR</a><span>/</span><a href="{{ '/docs/' if language == 'zh' else '/en/docs/' }}">{{ '文档' if language == 'zh' else 'Docs' }}</a>{% if doc_entry %}<span>/</span><span>{{ doc_entry[language] }}</span>{% endif %}</nav>
+    {% if doc_entry %}
+    <header class="docs-title"><h1>{{ doc_entry[language] }}</h1><a class="source-link" data-source-link href="{{ source_url }}">{{ '查看 / 编辑源文档' if language == 'zh' else 'View / edit source' }} &nearr;</a></header>
+    {% if source_english_only %}<p class="source-note">{{ '本篇目前使用英文源文档；导航保留中文。' }}</p>{% endif %}
+    <article class="docs-article">{{ content_html | safe }}</article>
+    <nav class="docs-next" aria-label="{{ '相邻文档' if language == 'zh' else 'Adjacent documents' }}">
+      {% if previous %}<a href="{{ ('/docs/' if language == 'zh' else '/en/docs/') ~ previous.slug ~ '.html' }}">&larr; {{ previous[language] }}</a>{% endif %}
+      {% if following %}<a href="{{ ('/docs/' if language == 'zh' else '/en/docs/') ~ following.slug ~ '.html' }}">{{ following[language] }} &rarr;</a>{% endif %}
+    </nav>
+    {% else %}
+    <header class="docs-title"><p class="eyebrow">FUNASR DOCUMENTATION</p><h1>{{ '从第一次转写，到生产部署。' if language == 'zh' else 'From first transcript to production.' }}</h1><p>{{ '模型能力、可运行示例和部署边界，在同一个地方。' if language == 'zh' else 'Model capabilities, runnable examples, and deployment boundaries in one place.' }}</p></header>
+    {% include 'search.html' %}
+    <div class="docs-groups">
+      {% for group in catalogue.groups %}
+      <section><span class="chapter-number">0{{ loop.index }}</span><h2>{{ group[language] }}</h2>
+        {% for page in catalogue.pages if page.group == group.id %}<a href="{{ ('/docs/' if language == 'zh' else '/en/docs/') ~ page.slug ~ '.html' }}">{{ page[language] }} <span aria-hidden="true">&rarr;</span></a>{% endfor %}
+      </section>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% if doc_entry %}<aside class="docs-toc"><strong>{{ '本页目录' if language == 'zh' else 'On this page' }}</strong>{{ toc_html | safe }}</aside>{% endif %}
+</div>
+{% endblock %}

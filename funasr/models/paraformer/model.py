@@ -7,7 +7,7 @@ import time
 import copy
 import torch
 import logging
-from torch.cuda.amp import autocast
+from funasr.utils.amp import autocast
 from typing import Union, Dict, List, Tuple, Optional
 
 from funasr.register import tables
@@ -555,7 +555,11 @@ class Paraformer(torch.nn.Module):
         is_use_lm = (
             kwargs.get("lm_weight", 0.0) > 0.00001 and kwargs.get("lm_file", None) is not None
         )
-        pred_timestamp = kwargs.get("pred_timestamp", False)
+        pred_timestamp = (
+            kwargs["pred_timestamp"]
+            if "pred_timestamp" in kwargs
+            else kwargs.get("output_timestamp", False)
+        )
         if self.beam_search is None and (is_use_lm or is_use_ctc):
             logging.info("enable beam_search")
             self.init_beam_search(**kwargs)
@@ -675,9 +679,23 @@ class Paraformer(torch.nn.Module):
                     text_postprocessed = tokenizer.tokens2text(token)
                     
                     if pred_timestamp:
+                        timestamp_pre_peak_index = pre_peak_index[i]
+                        timestamp_alphas = alphas[i]
+                        predictor = getattr(self, "predictor", None)
+                        if getattr(predictor, "tail_mask", None) is True:
+                            timestamp_len = int(encoder_out_lens[i].item())
+                            if float(getattr(predictor, "tail_threshold", 0.0)) > 0.0:
+                                timestamp_len += 1
+                            timestamp_len = min(
+                                timestamp_len,
+                                timestamp_pre_peak_index.shape[-1],
+                                timestamp_alphas.shape[-1],
+                            )
+                            timestamp_pre_peak_index = timestamp_pre_peak_index[:timestamp_len]
+                            timestamp_alphas = timestamp_alphas[:timestamp_len]
                         timestamp_str, timestamp = ts_prediction_lfr6_standard(
-                            pre_peak_index[i],
-                            alphas[i],
+                            timestamp_pre_peak_index,
+                            timestamp_alphas,
                             copy.copy(token),
                             vad_offset=kwargs.get("begin_time", 0),
                             upsample_rate=1,

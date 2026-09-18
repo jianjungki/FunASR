@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torchaudio
 import torchaudio.compliance.kaldi as kaldi
+from funasr.utils import fbank as kaldi
 from torch.nn.utils.rnn import pad_sequence
 
 import funasr.frontends.eend_ola_feature as eend_ola_feature
@@ -346,6 +347,8 @@ class WavFrontend(nn.Module):
 class WavFrontendOnline(nn.Module):
     """Conventional frontend structure for streaming ASR/VAD."""
 
+    supports_aligned_waveforms = True
+
     def __init__(
         self,
         cmvn_file: str = None,
@@ -598,17 +601,30 @@ class WavFrontendOnline(nn.Module):
         cache = kwargs.get("cache", {})
         if len(cache) == 0:
             self.init_cache(cache)
+        cache.setdefault("waveform_buffer", None)
+        cache.setdefault("waveform_buffer_start_sample", 0)
+        cache.setdefault("emitted_lfr_frames", 0)
+        cache["aligned_waveforms"] = torch.empty(0)
+        return_waveform = kwargs.get("return_waveform", False)
 
         batch_size = input.shape[0]
         assert (
             batch_size == 1
         ), "we support to extract feature online only when the batch size is equal to 1 now"
+        # VAD opts in to exact score-aligned waveform spans.
+        if return_waveform and input.shape[1] > 0:
+            cache["waveform_buffer"] = (
+                input.clone()
+                if cache["waveform_buffer"] is None
+                else torch.cat((cache["waveform_buffer"], input), dim=1)
+            )
 
         waveforms, feats, feats_lengths = self.forward_fbank(
             input, input_lengths, cache=cache
         )  # input shape: B T D
+        has_fbank_frames = bool(feats.shape[0])
 
-        if feats.shape[0]:
+        if has_fbank_frames:
 
             cache["waveforms"] = torch.cat((cache["reserve_waveforms"], waveforms), dim=1)
 
@@ -618,7 +634,7 @@ class WavFrontendOnline(nn.Module):
                         feats[i][0, :].unsqueeze(dim=0).repeat((self.lfr_m - 1) // 2, 1)
                     )
             # need the number of the input frames + self.lfr_splice_cache[0].shape[0] is greater than self.lfr_m
-            if feats_lengths[0] + cache["lfr_splice_cache"][0].shape[0] >= self.lfr_m:
+            if is_final or feats_lengths[0] + cache["lfr_splice_cache"][0].shape[0] >= self.lfr_m:
                 lfr_splice_cache_tensor = torch.stack(cache["lfr_splice_cache"])  # B T D
                 feats = torch.cat((lfr_splice_cache_tensor, feats), dim=1)
                 feats_lengths += lfr_splice_cache_tensor[0].shape[0]
@@ -660,7 +676,7 @@ class WavFrontendOnline(nn.Module):
                     )
                 return torch.empty(0), feats_lengths
         else:
-            if is_final:
+            if is_final and cache["lfr_splice_cache"]:
                 cache["waveforms"] = (
                     waveforms
                     if cache["reserve_waveforms"].numel() == 0
@@ -671,6 +687,41 @@ class WavFrontendOnline(nn.Module):
                 feats, feats_lengths, _ = self.forward_lfr_cmvn(
                     feats, feats_lengths, is_final, cache=cache
                 )
+
+        if return_waveform and feats.ndim == 3 and feats.shape[1] > 0:
+            score_frame_shift = self.lfr_n * self.frame_shift_sample_length
+            aligned_start = cache["emitted_lfr_frames"] * score_frame_shift
+            aligned_sample_count = (
+                (feats.shape[1] - 1) * score_frame_shift + self.frame_sample_length
+            )
+            aligned_end = aligned_start + aligned_sample_count
+            waveform_buffer = cache["waveform_buffer"]
+            buffer_start = cache["waveform_buffer_start_sample"]
+            buffer_end = buffer_start + (
+                0 if waveform_buffer is None else waveform_buffer.shape[1]
+            )
+            if (
+                waveform_buffer is None
+                or aligned_start < buffer_start
+                or aligned_end > buffer_end
+            ):
+                raise RuntimeError(
+                    "Frontend emitted LFR frames without enough waveform samples: "
+                    f"need [{aligned_start}, {aligned_end}), "
+                    f"have [{buffer_start}, {buffer_end})"
+                )
+            local_start = aligned_start - buffer_start
+            local_end = aligned_end - buffer_start
+            cache["aligned_waveforms"] = waveform_buffer[
+                :, local_start:local_end
+            ].clone()
+            cache["emitted_lfr_frames"] += feats.shape[1]
+
+            next_frame_start = cache["emitted_lfr_frames"] * score_frame_shift
+            next_buffer_start = min(next_frame_start, buffer_end)
+            drop_samples = next_buffer_start - buffer_start
+            cache["waveform_buffer"] = waveform_buffer[:, drop_samples:].clone()
+            cache["waveform_buffer_start_sample"] = next_buffer_start
         # if is_final:
         #     self.init_cache(cache)
         return feats, feats_lengths
@@ -687,6 +738,10 @@ class WavFrontendOnline(nn.Module):
         cache["input_cache"] = torch.empty(0)
         cache["lfr_splice_cache"] = []
         cache["waveforms"] = None
+        cache["aligned_waveforms"] = torch.empty(0)
+        cache["waveform_buffer"] = None
+        cache["waveform_buffer_start_sample"] = 0
+        cache["emitted_lfr_frames"] = 0
         cache["fbanks"] = None
         cache["fbanks_lens"] = None
         return cache

@@ -3,10 +3,18 @@
 # Pretrained Models Released on ModelScope
 
 ## Model License
-You are free to use, copy, modify, and share FunASR models under the conditions of this agreement. You should indicate the model source and author information when using, copying, modifying and sharing FunASR models. You should keep the relevant names of models in [FunASR software].. Full model license could see [license](https://github.com/alibaba-damo-academy/FunASR/blob/main/MODEL_LICENSE)
+The FunASR toolkit uses the [MIT software license](../LICENSE). Model weights
+have separate terms: check the exact checkpoint's model card, license file and
+revision before use or redistribution. The [FunASR model agreement](../MODEL_LICENSE)
+applies only to models whose published terms adopt it, not every entry in this
+catalogue. Third-party models, including OpenMOSS MOSS-Transcribe-Diarize, retain
+their original authorship and model-specific licenses.
 
 ## Model Usage
-Ref to [docs](https://alibaba-damo-academy.github.io/FunASR/en/modelscope_pipeline/quick_start.html)
+Start with [model selection](../docs/model_selection.md), the
+[Python SDK tutorial](../docs/tutorial/README.md), and the
+[deployment matrix](../docs/deployment_matrix.md). For MOSS, follow its
+[dedicated adapter and serving guide](../docs/moss_transcribe_diarize.md).
 
 ## Model Zoo
 Here we provided several pretrained models on different datasets. The details of models and datasets can be found on [ModelScope](https://www.modelscope.cn/models?page=1&tasks=auto-speech-recognition).
@@ -16,14 +24,14 @@ Here we provided several pretrained models on different datasets. The details of
 
 |                                                                     Model Name                                                                     | Language |          Training Data           | Vocab Size | Parameter | Offline/Online | Notes                                                                                                                           |
 |:--------------------------------------------------------------------------------------------------------------------------------------------------:|:--------:|:--------------------------------:|:----------:|:---------:|:--------------:|:--------------------------------------------------------------------------------------------------------------------------------|
-|        [Paraformer-large](https://www.modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)        | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Duration of input wav <= 20s                                                                                                    |
-| [Paraformer-large-long](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary) | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Which would deal with arbitrary length input wav                                                                                |
+|        [Paraformer-large](https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary)        | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Duration of input wav <= 20s                                                                                                    |
+| [Paraformer-large-long](https://www.modelscope.cn/models/iic/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch/summary) | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Which would deal with arbitrary length input wav                                                                                |
 | [Paraformer-large-en-long](https://www.modelscope.cn/models/damo/speech_paraformer-large-vad-punc_asr_nat-en-16k-common-vocab10020/summary) | EN  | Alibaba Speech Data (50000hours) |    10020    |   220M    |    Offline     | Which would deal with arbitrary length input wav                                                                                 |
 | [Paraformer-large-Spk](https://modelscope.cn/models/damo/speech_paraformer-large-vad-punc-spk_asr_nat-zh-cn/summary) | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Supporting speaker diarizatioin for ASR results based on paraformer-large-long |
 | [Paraformer-large-contextual](https://www.modelscope.cn/models/damo/speech_paraformer-large-contextual_asr_nat-zh-cn-16k-common-vocab8404/summary) | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Offline     | Which supports the hotword customization based on the incentive enhancement, and improves the recall and precision of hotwords. |
 |              [Paraformer](https://modelscope.cn/models/damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8358-tensorflow1/summary)              | CN & EN  | Alibaba Speech Data (50000hours) |    8358    |    68M    |    Offline     | Duration of input wav <= 20s                                                                                                    |
 |           [Paraformer-online](https://www.modelscope.cn/models/damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online/summary)           | CN & EN  | Alibaba Speech Data (50000hours) |    8404    |    68M    |     Online     | Which could deal with streaming input                                                                                           |
-|  [Paraformer-large-online](https://www.modelscope.cn/models/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary)        | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Online     | Which could deal with streaming input                                                                                                    |
+|  [Paraformer-large-online](https://www.modelscope.cn/models/iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online/summary)        | CN & EN  | Alibaba Speech Data (60000hours) |    8404    |   220M    |    Online     | Which could deal with streaming input                                                                                                    |
 |       [Paraformer-tiny](https://www.modelscope.cn/models/damo/speech_paraformer-tiny-commandword_asr_nat-zh-cn-16k-vocab544-pytorch/summary)       |    CN    |  Alibaba Speech Data (200hours)  |    544     |   5.2M    |    Offline     | Lightweight Paraformer model which supports Mandarin command words recognition                                                  |
 |                   [Paraformer-aishell](https://www.modelscope.cn/models/damo/speech_paraformer_asr_nat-aishell1-pytorch/summary)                   |    CN    |        AISHELL (178hours)        |    4234    |    43M    |    Offline     |                                                                                                                                 |
 |       [ParaformerBert-aishell](https://modelscope.cn/models/damo/speech_paraformerbert_asr_nat-zh-cn-16k-aishell1-vocab4234-pytorch/summary)       |    CN    |        AISHELL (178hours)        |    4234    |    43M    |    Offline     |                                                                                                                                 |
@@ -75,14 +83,14 @@ Here we provided several pretrained models on different datasets. The details of
 
 |                                           Model Name                                           |        Training Data         | Parameters | Sampling Rate | Notes |
 |:----------------------------------------------------------------------------------------------:|:----------------------------:|:----------:|:-------------:|:------|
-| [FSMN-VAD](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) | Alibaba Speech Data (5000hours) |    0.4M    |     16000     |       |
+| [FSMN-VAD](https://modelscope.cn/models/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch/summary) | Alibaba Speech Data (5000hours) |    0.4M    |     16000     |       |
 |   [FSMN-VAD](https://modelscope.cn/models/damo/speech_fsmn_vad_zh-cn-8k-common/summary)        | Alibaba Speech Data (5000hours) |    0.4M    |     8000      |       |
 
 ### Punctuation Restoration
 
 |                                                         Model Name                                                         |        Language | Training Data         | Parameters | Vocab Size| Offline/Online | Notes |
 |:--------------------------------------------------------------------------------------------------------------------------:|:---------|:----------------------------:|:----------:|:----------:|:--------------:|:------|
-|      [CT-Transformer-Large](https://modelscope.cn/models/damo/punc_ct-transformer_cn-en-common-vocab471067-large/summary)     | CN & EN | Alibaba Text Data(100M) |    1.1G     |    471067     |    Offline     |   large offline punctuation model    |
+|      [CT-Transformer-Large](https://modelscope.cn/models/iic/punc_ct-transformer_cn-en-common-vocab471067-large/summary)     | CN & EN | Alibaba Text Data(100M) |    1.1G     |    471067     |    Offline     |   large offline punctuation model    |
 |      [CT-Transformer](https://modelscope.cn/models/damo/punc_ct-transformer_zh-cn-common-vocab272727-pytorch/summary)    | CN & EN  | Alibaba Text Data(70M) |    291M     |    272727     |    Offline     |   offline punctuation model    |
 | [CT-Transformer-Realtime](https://modelscope.cn/models/damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727/summary)    | CN & EN  | Alibaba Text Data(70M) |    288M     |    272727     |     Online     |  online punctuation model     |
 
@@ -105,6 +113,12 @@ Here we provided several pretrained models on different datasets. The details of
 |:----------------------------------------------------------------------------------------------------------------:|:-------------------:|:----------:|:------|
 | [SOND](https://www.modelscope.cn/models/damo/speech_diarization_sond-zh-cn-alimeeting-16k-n16k4-pytorch/summary) | AliMeeting (120 hours) |   40.5M    |    Speaker diarization, profiles and records, Chinese |
 | [SOND](https://www.modelscope.cn/models/damo/speech_diarization_sond-en-us-callhome-8k-n16k4-pytorch/summary)    |  CallHome (60 hours)  |     12M     |    Speaker diarization, profiles and records, English   |
+
+### Third-party Unified Transcription and Diarization
+
+| Model Name | Publisher | Parameters | Notes |
+|:----------:|:---------:|:----------:|:------|
+| [MOSS-Transcribe-Diarize](https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize) | OpenMOSS | See official model card | Third-party Apache-2.0 model. One offline request returns transcription, timestamps, and speaker labels; FunASR integration does not require an external VAD service. See the [deployment guide](../docs/moss_transcribe_diarize.md). |
 
 ### Timestamp Prediction
 |                                                    Model Name                                     |  Language  |    Training Data    | Parameters | Notes |

@@ -1,0 +1,68 @@
+name: Validate KWS output handling
+
+on:
+  pull_request:
+    paths:
+      - "funasr/models/fsmn_kws/**"
+      - "funasr/models/fsmn_kws_mt/**"
+      - "funasr/models/sanm_kws/**"
+      - "funasr/models/sanm_kws_streaming/**"
+      - "funasr/frontends/wav_frontend.py"
+      - "funasr/auto/auto_model.py"
+      - "funasr/utils/datadir_writer.py"
+      - "funasr/utils/kws_utils.py"
+      - "tests/test_kws_optional_output.py"
+      - "tests/test_kws_streaming_continuity.py"
+      - "tests/test_kws_utils.py"
+      - "tests/test_fsmn_vad_streaming_buffers.py"
+      - "tests/test_dynamic_streaming_vad.py"
+      - "tests/test_fsmn_vad_dynamic_silence.py"
+      - ".github/workflows/test-kws-output.yml"
+  push:
+    branches: [main]
+    paths:
+      - "funasr/models/fsmn_kws/**"
+      - "funasr/models/fsmn_kws_mt/**"
+      - "funasr/models/sanm_kws/**"
+      - "funasr/models/sanm_kws_streaming/**"
+      - "funasr/frontends/wav_frontend.py"
+      - "funasr/auto/auto_model.py"
+      - "funasr/utils/datadir_writer.py"
+      - "funasr/utils/kws_utils.py"
+      - "tests/test_kws_optional_output.py"
+      - "tests/test_kws_streaming_continuity.py"
+      - "tests/test_kws_utils.py"
+      - "tests/test_fsmn_vad_streaming_buffers.py"
+      - "tests/test_dynamic_streaming_vad.py"
+      - "tests/test_fsmn_vad_dynamic_silence.py"
+      - ".github/workflows/test-kws-output.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  kws-output:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "numpy<2" "kaldiio>=2.17.0" librosa "rapidfuzz>=3.0.0" six pytest omegaconf hydra-core pyyaml tqdm
+      - name: Check KWS continuity and related frontend contracts without model weights
+        run: |
+          python -m pytest -q \
+            tests/test_kws_optional_output.py \
+            tests/test_kws_streaming_continuity.py \
+            tests/test_kws_utils.py \
+            tests/test_fsmn_vad_streaming_buffers.py \
+            tests/test_dynamic_streaming_vad.py \
+            tests/test_fsmn_vad_dynamic_silence.py

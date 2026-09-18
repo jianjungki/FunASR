@@ -14,6 +14,11 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / '_ext'))
+
 
 # -- Project information -----------------------------------------------------
 
@@ -38,6 +43,7 @@ extensions = [
     "sphinx_markdown_tables",
     "recommonmark",
     "sphinx_rtd_theme",
+    "repository_links",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

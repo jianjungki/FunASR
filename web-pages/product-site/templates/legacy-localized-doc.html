@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ entry.title }} | FunASR</title>
+  <link rel="canonical" href="{{ canonical }}">
+  {% for href in styles %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
+</head>
+<body class="localized-legacy-doc" data-language="{{ language }}" data-copy-icon="{{ copy_icon }}">
+  <a class="skip-link" href="#main">{{ '本文へ' if language == 'ja' else '본문으로' }}</a>
+  <header class="legacy-doc-header">
+    <a class="brand" href="https://www.funasr.com/en/"><span class="brand-mark" aria-hidden="true">F</span><span>FunASR</span></a>
+    <nav aria-label="{{ '言語' if language == 'ja' else '언어' }}">
+      <a href="https://www.funasr.com/en/docs/">English</a>
+      <a href="https://www.funasr.com/docs/">中文</a>
+      {% if peer_href %}<a href="{{ peer_href }}" data-peer-link>{{ peer_label }}</a>{% endif %}
+    </nav>
+  </header>
+  <main id="main" class="docs-layout">
+    <aside class="docs-sidebar">
+      <nav aria-label="{{ 'ガイド' if language == 'ja' else '가이드' }}">
+        {% for page in navigation %}<a href="{{ page.href }}"{% if page.route == entry.route %} aria-current="page"{% endif %}>{{ page.title }}</a>{% endfor %}
+      </nav>
+    </aside>
+    <div class="docs-body">
+      <header class="docs-title">
+        <h1>{{ entry.title }}</h1>
+        <a class="source-link" href="{{ source_url }}" data-source-link>{{ 'GitHub で原稿を読む' if language == 'ja' else 'GitHub 원문' }}</a>
+      </header>
+      <article class="docs-article">{{ content_html | safe }}</article>
+    </div>
+    <aside class="docs-toc" aria-label="{{ '目次' if language == 'ja' else '목차' }}">{{ toc_html | safe }}</aside>
+  </main>
+  {% for src in scripts %}<script src="{{ src }}" defer></script>{% endfor %}
+</body>
+</html>

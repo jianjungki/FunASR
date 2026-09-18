@@ -1,0 +1,8 @@
+<form class="doc-search" data-doc-search role="search" action="{{ '/docs/' if language == 'zh' else '/en/docs/' }}">
+  <label for="docs-query">{{ '搜索文档' if language == 'zh' else 'Search documentation' }}</label>
+  <div class="search-field">
+    <input id="docs-query" name="q" type="search" autocomplete="off" placeholder="{{ '模型、部署、时间戳、MOSS…' if language == 'zh' else 'Models, deployment, timestamps, MOSS…' }}" aria-controls="search-results">
+    <button class="icon-button" type="submit" title="{{ '搜索' if language == 'zh' else 'Search' }}"><img src="{{ assets['lucide/arrow-right.svg'] }}" alt=""></button>
+  </div>
+  <div id="search-results" class="search-results" hidden aria-live="polite"></div>
+</form>

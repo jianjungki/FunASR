@@ -1,96 +1,70 @@
-# FunASR软件包路线图
+# FunASR 运行时部署指南
 
-English Version（[docs](./readme.md)）
+简体中文 | [English](./readme.md)
 
-FunASR是由阿里巴巴通义实验室语音团队开源的一款语音识别基础框架，集成了语音端点检测、语音识别、标点断句等领域的工业级别模型，吸引了众多开发者参与体验和开发。为了解决工业落地的最后一公里，将模型集成到业务中去，我们开发了社区软件包。
-支持以下几种服务部署：
+先确定模型和协议，再选择容器或二进制包。[部署矩阵](../docs/deployment_matrix_zh.md)
+给出固定版本命令、验证硬件和已知限制。旧发布说明保留在
+[历史记录](./release-history_zh.md)，不能直接作为当前服务容量承诺。
 
-<img src="docs/images/sdk_roadmap.jpg"  width="900"/>
+## 选择服务路径
 
-- 中文离线文件转写服务（CPU版本），已完成
-- 中文流式语音识别服务（CPU版本），已完成
-- 英文离线文件转写服务（CPU版本），已完成
-- 中文离线文件转写服务（GPU版本），已完成
-- 更多支持中
+| 需求 | 入口 | 边界 |
+| --- | --- | --- |
+| Python HTTP 转写 | [OpenAI 兼容服务](../examples/openai_api/README_zh.md) | API 兼容、模型质量和实时能力是不同问题。 |
+| Fun-ASR-Nano 解码加速 | [vLLM 指南](../docs/vllm_guide_zh.md) | 原生 vLLM 与 FunASR split-engine 的权重布局和接口契约不同。 |
+| 本地便携 GGUF 推理 | [llama.cpp](./llama.cpp/README.md) | 使用匹配的平台/后端包和 GGUF 模型；构建成功不等于所有设备验证通过。 |
+| 原生 ONNX CPU 推理 | [ONNX Runtime](./onnxruntime/readme.md) | 输出字段见 [JSONL 与时间戳契约](./docs/onnxruntime_binary_output_zh.md)。 |
+| 统一离线转写与说话人分离 | [MOSS-Transcribe-Diarize](../docs/moss_transcribe_diarize_zh.md) | OpenMOSS 第三方模型，输出匿名说话人标签，不是实时或已知人物身份识别。 |
+| 长连接流式 / 双遍会话 | [C++ WebSocket 协议](./docs/websocket_protocol_zh.md) | 不能向该端点发送 OpenAI HTTP 请求或其他实现的 WebSocket 消息。 |
+| 集群内私有 HTTP 服务 | [Kubernetes 模板](../examples/openai_api/kubernetes/README_zh.md) | 按目标集群配置资源、持久缓存、探针、上传限制和网关策略。 |
 
 ## 中文离线文件转写服务（GPU版本）
 
-中文语音离线文件服务部署（GPU版本），拥有完整的语音识别链路，可以将几十个小时的长音频与视频识别成带标点的文字，而且支持多路请求同时进行转写。
-为了支持不同用户的需求，针对不同场景，准备了不同的图文教程：
-
-### 最新动态
-- 2024/09/26:   中文离线文件转写服务GPU 2.0 发布，修复显存泄漏，docker镜像版本funasr-runtime-sdk-gpu-0.2.0 (d280bf7e495b)
-- 2024/07/01:   中文离线文件转写服务GPU 1.1 发布，优化bladedisc模型兼容性问题，docker镜像版本funasr-runtime-sdk-gpu-0.1.1 (8875cbf9b99e)
-- 2024/06/27:   中文离线文件转写服务GPU 1.0 发布，支持动态batch，支持多路并发，在长音频测试集上单线RTF为0.0076，多线加速比为1200+（CPU为330+），详见([文档](./docs/benchmark_libtorch_cpp.md))，docker镜像版本funasr-runtime-sdk-gpu-0.1.0 (b86066f4d018)
-
-### 部署与开发文档
-
-部署模型来自于ModelScope，或者用户finetune，支持用户定制服务，详细文档参考（[点击此处](./docs/SDK_advanced_guide_offline_gpu_zh.md)）
-
+按 [GPU 部署开发指南](./docs/SDK_advanced_guide_offline_gpu_zh.md)配置原生运行时。
+它不是 Model Zoo 中每个模型的通用安装方法；需要用实际镜像、权重和 GPU 复测。
 
 ## 英文离线文件转写服务（CPU版本）
 
-英文离线文件转写服务部署（CPU版本），拥有完整的语音识别链路，可以将几十个小时的长音频与视频识别成带标点的文字，而且支持上百路请求同时进行转写。
-为了支持不同用户的需求，针对不同场景，准备了不同的图文教程：
-
-### 最新动态
-- 2024/09/26:   英文离线文件转写服务 1.7 发布，修复内存泄漏，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.7 (f6c5a7b59eb6)
-- 2024/05/15:   英文离线文件转写服务 1.6 发布，适配FunASR 1.0模型结构，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.6 (84d781d07997)
-- 2024/03/05:   英文离线文件转写服务 1.5 发布，docker镜像支持arm64平台，升级modelscope版本，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.5 (7cca2abc5901)
-- 2024/01/25:   英文离线文件转写服务 1.3 发布，优化vad数据处理方式，大幅降低峰值内存占用，内存泄漏优化，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.3 (c00f9ce7a195)
-- 2024/01/03:   英文离线文件转写服务 1.2 发布，修复已知的crash问题及内存泄漏问题，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.2 (0cdd9f4a4bb5)
-- 2023/11/08:   英文离线文件转写服务 1.1 发布，runtime结构变化适配（FunASR/funasr/runtime->FunASR/runtime），docker镜像版本funasr-runtime-sdk-en-cpu-0.1.1 (27017f70f72a)
-- 2023/10/16:   英文离线文件转写服务 1.0 发布，docker镜像版本funasr-runtime-sdk-en-cpu-0.1.0 (e0de03eb0163)，原理介绍文档（[点击此处](https://mp.weixin.qq.com/s/DZZUTj-6xwFfi-96ml--4A)）
-
-
-### 部署与开发文档
-
-部署模型来自于ModelScope，或者用户finetune，支持用户定制服务，详细文档参考（[点击此处](./docs/SDK_advanced_guide_offline_en_zh.md)）
-
+参见[英文服务教程](./docs/SDK_tutorial_en.md)和
+[高级配置](./docs/SDK_advanced_guide_offline_en.md)。
+显式选择英文权重，不要只凭容器名推断语言覆盖。
 
 ## 中文实时语音听写服务（CPU版本）
-FunASR实时语音听写服务软件包，既可以实时地进行语音转文字，而且能够在说话句尾用高精度的转写文字修正输出，输出文字带有标点，支持高并发多路请求。
-为了支持不同用户的需求，针对不同场景，准备了不同的图文教程：
 
-### 最新动态
-- 2024/10/29:   中文实时语音听写服务 1.12 发布，2pass-offline模式支持SensevoiceSmall模型，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.12 (f5febc5cf13a)
-- 2024/09/26:   中文实时语音听写服务 1.11 发布，修复内存泄漏，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.11 (e51a36c42771)
-- 2024/05/15:   中文实时语音听写服务 1.10 发布，适配FunASR 1.0模型结构，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.10 (1c2adfcff84d)
-- 2024/03/05:   中文实时语音听写服务 1.9 发布，docker镜像支持arm64平台，升级modelscope版本，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.9 (4a875e08c7a2)
-- 2024/01/25:   中文实时语音听写服务 1.7 发布，客户端优化，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.7 (2aa23805572e)
-- 2024/01/03:   中文实时语音听写服务 1.6 发布，2pass-offline模式支持Ngram语言模型解码、wfst热词，同时修复已知的crash问题及内存泄漏问题，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.6 (f99925110d27)
-- 2023/11/09:   中文实时语音听写服务 1.5 发布，修复无实时结果的问题，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.5 (b16584b6d38b)
-- 2023/11/08:   中文实时语音听写服务 1.4 发布，支持服务端加载热词(更新热词通信协议)、runtime结构变化适配（FunASR/funasr/runtime->FunASR/runtime），docker镜像版本funasr-runtime-sdk-online-cpu-0.1.4 (691974017c38)
-- 2023/09/19:   中文实时语音听写服务 1.2 发布，2pass模式支持热词、时间戳、ITN模型，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.2 (7222c5319bcf)
-- 2023/08/11:   中文实时语音听写服务 1.1 发布，修复了部分已知的bug(包括server崩溃等)，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.1 (bdbdd0b27dee)
-- 2023/08/07:   中文实时语音听写服务 1.0 发布，docker镜像版本funasr-runtime-sdk-online-cpu-0.1.0 (bdbdd0b27dee)，原理介绍文档（[点击此处](https://mp.weixin.qq.com/s/8He081-FM-9IEI4D-lxZ9w)）
-
-
-### 部署与开发文档
-
-部署模型来自于ModelScope，或者用户finetune，支持用户定制服务，详细文档参考（[点击此处](./docs/SDK_advanced_guide_online_zh.md)）
-
-
+先运行[流式教程](./docs/SDK_tutorial_online_zh.md)，再按
+[协议](./docs/websocket_protocol_zh.md)与
+[对应的多客户端示例](./python/websocket/README.md)验证。
+重点检查采样率、音频分块、结束消息、重连和不同会话之间的状态隔离。
+C++ 双遍服务与 Fun-ASR-Nano Python 流式服务是不同实现。
+另一个 [Nano 实时压测工具](../docs/benchmark/realtime_ws_benchmark.md)使用
+Nano 的 `START`/`STOP` 协议，不能对 C++ 服务使用。
 
 ## 中文离线文件转写服务（CPU版本）
 
-中文语音离线文件服务部署（CPU版本），拥有完整的语音识别链路，可以将几十个小时的长音频与视频识别成带标点的文字，而且支持上百路请求同时进行转写。
-为了支持不同用户的需求，针对不同场景，准备了不同的图文教程：
+参见[离线教程](./docs/SDK_tutorial_zh.md)和
+[高级配置](./docs/SDK_advanced_guide_offline_zh.md)。
+Paraformer、SenseVoice 等模型的选择边界见[模型选择](../docs/model_selection_zh.md)。
 
-### 最新动态
-- 2024/09/26:   中文离线文件转写服务 4.6 发布，修复内存泄漏、支持SensevoiceSmall onnx模型，docker镜像版本funasr-runtime-sdk-cpu-0.4.6 (8651c6b8a1ae)
-- 2024/05/15:   中文离线文件转写服务 4.5 发布，适配FunASR 1.0模型结构，docker镜像版本funasr-runtime-sdk-cpu-0.4.5 (058b9882ae67)
-- 2024/03/05:   中文离线文件转写服务 4.4 发布，docker镜像支持arm64平台，升级modelscope版本，docker镜像版本funasr-runtime-sdk-cpu-0.4.4 (2dc87b86dc49)
-- 2024/01/25:   中文离线文件转写服务 4.2 发布，优化vad数据处理方式，大幅降低峰值内存占用，内存泄漏优化，docker镜像版本funasr-runtime-sdk-cpu-0.4.2 (befdc7b179ed)
-- 2024/01/08:   中文离线文件转写服务 4.1 发布，优化句子级时间戳json格式，docker镜像版本funasr-runtime-sdk-cpu-0.4.1 (0250f8ef981b)
-- 2024/01/03:   中文离线文件转写服务 4.0 发布，新增支持8k模型、优化时间戳不匹配问题及增加句子级别时间戳、优化英文单词fst热词效果、支持自动化配置线程参数，同时修复已知的crash问题及内存泄漏问题，docker镜像版本funasr-runtime-sdk-cpu-0.4.0 (c4483ee08f04)
-- 2023/11/08:   中文离线文件转写服务 3.0 发布，支持标点大模型、支持Ngram模型、支持fst热词(更新热词通信协议)、支持服务端加载热词、runtime结构变化适配（FunASR/funasr/runtime->FunASR/runtime），docker镜像版本funasr-runtime-sdk-cpu-0.3.0 (caa64bddbb43)，原理介绍文档（[点击此处](https://mp.weixin.qq.com/s/jSbnKw_m31BUUbTukPSOIw)）
-- 2023/09/19:   中文离线文件转写服务 2.2 发布，支持ITN模型，docker镜像版本funasr-runtime-sdk-cpu-0.2.2 (2c5286be13e9)
-- 2023/08/22:   中文离线文件转写服务 2.0 发布，集成ffmpeg支持多种音视频输入、支持热词模型、支持时间戳模型，docker镜像版本funasr-runtime-sdk-cpu-0.2.0 (1ad3d19e0707)，原理介绍文档（[点击此处](https://mp.weixin.qq.com/s/oJHe0MKDqTeuIFH-F7GHMg)）
-- 2023/07/03:   中文离线文件转写服务 1.0 发布，docker镜像版本funasr-runtime-sdk-cpu-0.1.0 (1ad3d19e0707)，原理介绍文档（[点击此处](https://mp.weixin.qq.com/s/DHQwbgdBWcda0w_L60iUww)）
+## 客户端与平台适配
 
-### 部署与开发文档
+- [Python WebSocket](./python/websocket/README.md)、[Python HTTP](./python/http/README.md)、[Java](./java/readme.md)、[Go](./golang/websocket/readme.md)。
+- [浏览器客户端](./html5/readme_zh.md)、[gRPC](./grpc/Readme.md)、[Triton](./triton_gpu/README.md)。
+- [Android](./android/readme.md) 与 [iOS](./ios/Readme.md) 是独立移植指南，
+  不代表每个桌面发布包都验证过这些设备。
 
-部署模型来自于ModelScope，或者用户finetune，支持用户定制服务，详细文档参考（[点击此处](./docs/SDK_advanced_guide_offline_zh.md)）
+不同适配器的协议和依赖以各自文档为准，示例代码不自动等于所有目标平台的生产支持。
 
+## 上线检查清单
 
+1. 固定代码 commit / 镜像 digest、模型 revision、配置与目标硬件。
+2. 用已知音频检查真实转写和原始返回值，不只检查 health 端点。
+3. 分别评测业务音频质量、延迟、并发、内存与失败行为。
+4. 依据[安全指南](../examples/openai_api/SECURITY_zh.md)配置认证、TLS、请求限制和隐私控制。
+5. 保留上一版模型、产物和配置，并实际演练回滚。
+6. 按[排障清单](../docs/troubleshooting_zh.md)提交未解决问题；
+   代码发布不能证明用户报告的硬件问题已经解决。
+
+## 历史发布记录
+
+[完整历史记录](./release-history_zh.md)保留早期 Docker 标签、日期和性能评测引用。
+新部署以当前[部署手册](https://www.funasr.com/deploy/)和明确的验证边界为准。

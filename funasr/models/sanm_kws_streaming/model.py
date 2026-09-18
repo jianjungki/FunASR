@@ -26,7 +26,7 @@ from funasr.utils.load_utils import load_audio_text_image_video, extract_fbank
 
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
-    from torch.cuda.amp import autocast
+    from funasr.utils.amp import autocast
 else:
     # Nothing to do if torch<1.6.0
     @contextmanager
@@ -198,6 +198,9 @@ class SanmKWSStreaming(SanmKWS):
         cache["decoder"] = cache_decoder
         cache["frontend"] = {}
         cache["prev_samples"] = torch.empty(0)
+        cache["pending_features"] = torch.empty((batch_size, 0, feats_dims))
+        cache["frontend_started"] = False
+        cache["encoder_started"] = False
 
         return cache
 
@@ -224,40 +227,51 @@ class SanmKWSStreaming(SanmKWS):
         speech = speech.to(device=kwargs["device"])
         speech_lengths = speech_lengths.to(device=kwargs["device"])
 
-        # Encoder
         is_final = kwargs.get("is_final", False)
-        encoder_out, encoder_out_lens = self.encode_chunk(
-            speech, speech_lengths, cache=cache, is_final=is_final
+        no_pending_context = (
+            is_final
+            and speech.shape[1] == 0
+            and cache["encoder"]["chunk_size"][2] == 0
+            and cache["encoder"]["encoder_out"] is not None
         )
-        if isinstance(encoder_out, tuple):
-            encoder_out = encoder_out[0]
-
-        chunk_size = cache["encoder"]["chunk_size"]
-        real_start_pos = chunk_size[0]
-
-        if encoder_out_lens[0] > chunk_size[0] + chunk_size[1] + chunk_size[2]:
-            assert False, print("impossible case 1 !")
-        if encoder_out_lens[0] == chunk_size[0] + chunk_size[1] + chunk_size[2]:
-            real_end_pos = chunk_size[0] + chunk_size[1]
-        elif encoder_out_lens[0] > chunk_size[0] + chunk_size[1]:
-            real_end_pos = chunk_size[0] + chunk_size[1]
-        elif encoder_out_lens[0] > chunk_size[0]:
-            real_end_pos = encoder_out_lens[0]
+        if no_pending_context:
+            # Zero-right-context EOS only decodes output already committed.
+            encoder_out_accum = cache["encoder"]["encoder_out"]
         else:
-            assert False, print("impossible case 2 !")
+            encoder_out, encoder_out_lens = self.encode_chunk(
+                speech, speech_lengths, cache=cache, is_final=is_final
+            )
+            if isinstance(encoder_out, tuple):
+                encoder_out = encoder_out[0]
 
-        encoder_out_accum = cache["encoder"]["encoder_out"]
-        if encoder_out_accum is not None:
-            encoder_out_accum = torch.cat((encoder_out_accum, encoder_out[:, real_start_pos:real_end_pos, :]), dim=1)
-        else:
-            encoder_out_accum = encoder_out[:, real_start_pos:real_end_pos, :]
-        cache["encoder"]["encoder_out"] = encoder_out_accum
+            chunk_size = cache["encoder"]["chunk_size"]
+            real_start_pos = chunk_size[0]
 
-        if cache["encoder"]["encoder_out_lens"] is not None:
-            cache["encoder"]["encoder_out_lens"][0] += real_end_pos - real_start_pos
-        else:
-            cache["encoder"]["encoder_out_lens"] = encoder_out_lens
-            cache["encoder"]["encoder_out_lens"][0] = real_end_pos - real_start_pos
+            if encoder_out_lens[0] > chunk_size[0] + chunk_size[1] + chunk_size[2]:
+                assert False, print("impossible case 1 !")
+            if is_final and encoder_out_lens[0] >= real_start_pos:
+                real_end_pos = encoder_out_lens[0]
+            elif encoder_out_lens[0] == chunk_size[0] + chunk_size[1] + chunk_size[2]:
+                real_end_pos = chunk_size[0] + chunk_size[1]
+            elif encoder_out_lens[0] > chunk_size[0] + chunk_size[1]:
+                real_end_pos = chunk_size[0] + chunk_size[1]
+            elif encoder_out_lens[0] > chunk_size[0]:
+                real_end_pos = encoder_out_lens[0]
+            else:
+                assert False, print("impossible case 2 !")
+
+            encoder_out_accum = cache["encoder"]["encoder_out"]
+            if encoder_out_accum is not None:
+                encoder_out_accum = torch.cat((encoder_out_accum, encoder_out[:, real_start_pos:real_end_pos, :]), dim=1)
+            else:
+                encoder_out_accum = encoder_out[:, real_start_pos:real_end_pos, :]
+            cache["encoder"]["encoder_out"] = encoder_out_accum
+
+            if cache["encoder"]["encoder_out_lens"] is not None:
+                cache["encoder"]["encoder_out_lens"][0] += real_end_pos - real_start_pos
+            else:
+                cache["encoder"]["encoder_out_lens"] = encoder_out_lens
+                cache["encoder"]["encoder_out_lens"][0] = real_end_pos - real_start_pos
 
         if is_final:
             if kwargs.get("output_dir") is not None:
@@ -271,11 +285,12 @@ class SanmKWSStreaming(SanmKWS):
                 is_deted, det_keyword, det_score = detect_result[0], detect_result[1], detect_result[2]
 
                 if is_deted:
-                    self.writer["detect"][key[i]] = "detected " + det_keyword + " " + str(det_score)
                     det_info = "detected " + det_keyword + " " + str(det_score)
                 else:
-                    self.writer["detect"][key[i]] = "rejected"
                     det_info = "rejected"
+
+                if kwargs.get("output_dir") is not None:
+                    self.writer["detect"][key[i]] = det_info
 
                 result_i = {"key": key[i], "text": det_info}
                 results.append(result_i)
@@ -283,6 +298,44 @@ class SanmKWSStreaming(SanmKWS):
             return results
         else:
             return None
+
+    def _consume_streaming_features(
+        self, speech, speech_lengths, key, tokenizer, frontend, cache, **kwargs
+    ):
+        """Commit canonical middle windows, then all remaining valid final frames."""
+        pending = cache["pending_features"]
+        if speech.numel():
+            pending = torch.cat((pending, speech[:, : int(speech_lengths[0]), :]), dim=1)
+        left, middle, right = cache["encoder"]["chunk_size"]
+        needed = middle + (0 if cache["encoder_started"] else right)
+        cache["encoder"]["tail_chunk"] = False
+        while pending.shape[1] >= needed:
+            if not cache["encoder_started"]:
+                # Only left padding is synthetic; all real frames get preprocessing.
+                cache["encoder"]["feats"] = cache["encoder"]["feats"][:, :left, :]
+            block = pending[:, :needed, :].clone()
+            self.generate_chunk(
+                block, torch.tensor([needed]), key=key, tokenizer=tokenizer,
+                frontend=frontend, cache=cache, **{**kwargs, "is_final": False},
+            )
+            cache["encoder_started"] = True
+            if left + right == 0:
+                cache["encoder"]["feats"] = cache["encoder"]["feats"][:, :0, :]
+            pending = pending[:, needed:, :]
+            needed = middle
+        cache["pending_features"] = pending.clone()
+        if not kwargs.get("is_final", False):
+            return []
+        if not cache["encoder_started"]:
+            if pending.shape[1] == 0:
+                return []
+            cache["encoder"]["feats"] = cache["encoder"]["feats"][:, :left, :]
+        # An empty new-feature tensor flushes preprocessed overlap without embedding it twice.
+        return self.generate_chunk(
+            pending.clone(), torch.tensor([pending.shape[1]]), key=key,
+            tokenizer=tokenizer, frontend=frontend, cache=cache,
+            **{**kwargs, "is_final": True},
+        )
 
     def inference(
         self,
@@ -294,17 +347,27 @@ class SanmKWSStreaming(SanmKWS):
         cache: dict = None,
         **kwargs,
     ):
-        """Run inference on input data.
-        
-            Args:
-                data_in: Input data (audio samples, file paths, or text).
-                data_lengths: Lengths of each input sample in the batch.
-                key: Sample identifiers.
-                tokenizer: Tokenizer instance for text encoding/decoding.
-                frontend: Audio frontend for feature extraction.
-                cache: State cache dict for streaming inference.
-                **kwargs: Additional keyword arguments.
-            """
+        """Consume audio packets and decode once at the end of an utterance.
+
+        Array/tensor packets must share the same caller-owned cache. Nonfinal
+        calls return an empty result list while retaining unconsumed audio and
+        features. Finalization flushes valid frames, returns detection results,
+        and resets cache fields in place. File/URL inputs finalize automatically.
+
+        Args:
+            data_in: Mono audio samples, a file path, or a URL.
+            data_lengths: Optional input lengths.
+            key: Utterance identifiers; batch size must be one.
+            tokenizer: Keyword tokenizer with token_list and seg_dict.
+            frontend: Streaming audio frontend.
+            cache: Caller-owned state, reused until is_final=True.
+            **kwargs: Includes device, keywords, is_final, and chunk_size
+                [left, middle, right] in frontend feature frames.
+
+        Returns:
+            Tuple of a result list and timing metadata. Results are emitted
+            only at utterance end; this is not a per-packet wake-event API.
+        """
         if cache is None:
             cache = {}
         keywords = kwargs.get("keywords")
@@ -318,8 +381,11 @@ class SanmKWSStreaming(SanmKWS):
 
         meta_data = {}
         chunk_size = kwargs["chunk_size"]
-        chunk_stride_samples = int(chunk_size[1] * 960)  # 600ms
-        first_chunk_padding_samples = int(chunk_size[2] * 960)  # 600ms
+        if len(chunk_size) != 3 or chunk_size[0] < 0 or chunk_size[1] <= 0 or chunk_size[2] < 0:
+            raise ValueError("chunk_size must be [left >= 0, middle > 0, right >= 0]")
+        frame_stride_samples = int(frontend.fs * frontend.frame_shift * frontend.lfr_n / 1000)
+        if frame_stride_samples <= 0:
+            raise ValueError("frontend frame stride must be positive")
 
         if len(cache) == 0:
             self.init_cache(cache, **kwargs)
@@ -334,158 +400,54 @@ class SanmKWSStreaming(SanmKWS):
             tokenizer=tokenizer,
             cache=cfg,
         )
-        _is_final = cfg["is_final"]  # if data_in is a file or url, set is_final=True
-
+        is_final = cfg["is_final"]
         time2 = time.perf_counter()
         meta_data["load_data"] = f"{time2 - time1:0.3f}"
         assert len(audio_sample_list) == 1, "batch_size must be set 1"
+        incoming = audio_sample_list[0]
+        if incoming.numel():
+            meta_data["batch_data_time"] = incoming.numel() / frontend.fs
+        audio = torch.cat((cache["prev_samples"], incoming))
 
-        audio_sample = torch.cat((cache["prev_samples"], audio_sample_list[0]))
-
-        if len(audio_sample) < first_chunk_padding_samples:
-            print("key: {}, audio is too short for inference {}".format(key, len(audio_sample)))
-
-        audio_sample_pre = audio_sample[0 : first_chunk_padding_samples]
-        feat_pre, feat_pre_lengths = extract_fbank(
-            [audio_sample_pre],
-            data_type=kwargs.get("data_type", "sound"),
-            frontend=frontend,
-            cache=cache["frontend"],
-            is_final=False,
-        )
-
-        audio_sample = audio_sample[first_chunk_padding_samples:]
-        audio_chunks = int(len(audio_sample) // chunk_stride_samples)
-
-        for i in range(audio_chunks):
-            if i == 0:
-                cache["encoder"]["feats"][:, chunk_size[2] :, :] = feat_pre
-
-            kwargs["is_final"] = False
-            audio_sample_i = audio_sample[i * chunk_stride_samples : (i + 1) * chunk_stride_samples]
-
-            if kwargs["is_final"] and len(audio_sample_i) < 960:
-                cache["encoder"]["tail_chunk"] = True
-                speech = cache["encoder"]["feats"]
-                speech_lengths = torch.tensor([speech.shape[1]], dtype=torch.int64).to(
-                    speech.device
-                )
-            else:
-                # extract fbank feats
-                speech, speech_lengths = extract_fbank(
-                    [audio_sample_i],
-                    data_type=kwargs.get("data_type", "sound"),
-                    frontend=frontend,
-                    cache=cache["frontend"],
-                    is_final=kwargs["is_final"],
-                )
-            time3 = time.perf_counter()
-            meta_data["extract_feat"] = f"{time3 - time2:0.3f}"
-            meta_data["batch_data_time"] = (
-                speech_lengths.sum().item() * frontend.frame_shift * frontend.lfr_n / 1000
-            )
-
-            results_chunk_i = self.generate_chunk(
-                speech,
-                speech_lengths,
-                key=key,
-                tokenizer=tokenizer,
-                cache=cache,
-                frontend=frontend,
-                **kwargs,
-            )
-
-            # results_chunk_i must be None when is_final=False
-            assert results_chunk_i is None
-
-        # process tail samples
-        tail_audio_sample = audio_sample[ audio_chunks * chunk_stride_samples: ]
-        if len(tail_audio_sample) < 960:
-            kwargs["is_final"] = _is_final
-            cache["encoder"]["tail_chunk"] = True
-            speech = cache["encoder"]["feats"]
-            speech_lengths = torch.tensor([speech.shape[1]], dtype=torch.int64).to(
-                speech.device
-            )
-            results_chunk_tail = self.generate_chunk(
-                speech,
-                speech_lengths,
-                key=key,
-                tokenizer=tokenizer,
-                cache=cache,
-                frontend=frontend,
-                **kwargs,
-            )
-        elif len(tail_audio_sample) <= first_chunk_padding_samples:
-            kwargs["is_final"] = _is_final
-            # extract fbank feats
-            # cache["encoder"]["tail_chunk"] = True  # cannot be true
+        # Frontend calls and encoder windows do not depend on caller packet sizes.
+        offset = 0
+        while True:
+            frames = chunk_size[1] + (0 if cache["frontend_started"] else chunk_size[2])
+            sample_count = frames * frame_stride_samples
+            if len(audio) - offset < sample_count:
+                break
             speech, speech_lengths = extract_fbank(
-                [ tail_audio_sample ],
+                [audio[offset : offset + sample_count]],
                 data_type=kwargs.get("data_type", "sound"),
                 frontend=frontend,
                 cache=cache["frontend"],
-                is_final=kwargs["is_final"],
+                is_final=False,
             )
-            results_chunk_tail = self.generate_chunk(
-                speech,
-                speech_lengths,
-                key=key,
-                tokenizer=tokenizer,
-                cache=cache,
-                frontend=frontend,
-                **kwargs,
+            cache["frontend_started"] = True
+            self._consume_streaming_features(
+                speech, speech_lengths, key, tokenizer, frontend, cache,
+                **{**kwargs, "is_final": False},
             )
-        elif len(tail_audio_sample) > first_chunk_padding_samples and \
-             len(tail_audio_sample) < chunk_stride_samples:
-            kwargs["is_final"] = False
-            # extract fbank feats
+            offset += sample_count
+
+        cache["prev_samples"] = audio[offset:].clone()
+        results = []
+        if is_final:
             speech, speech_lengths = extract_fbank(
-                [ tail_audio_sample ],
+                [cache["prev_samples"]],
                 data_type=kwargs.get("data_type", "sound"),
                 frontend=frontend,
                 cache=cache["frontend"],
-                is_final=kwargs["is_final"],
+                is_final=True,
             )
-            results_chunk = self.generate_chunk(
-                speech,
-                speech_lengths,
-                key=key,
-                tokenizer=tokenizer,
-                cache=cache,
-                frontend=frontend,
-                **kwargs,
+            results = self._consume_streaming_features(
+                speech, speech_lengths, key, tokenizer, frontend, cache,
+                **{**kwargs, "is_final": True},
             )
-            # results_chunk must be None when is_final=False
-            assert results_chunk is None
-
-            # push tail chunk
-            kwargs["is_final"] = _is_final
-            cache["encoder"]["tail_chunk"] = True
-            speech = cache["encoder"]["feats"]
-            speech_lengths = torch.tensor([speech.shape[1]], dtype=torch.int64).to(
-                speech.device
-            )
-            results_chunk_tail = self.generate_chunk(
-                speech,
-                speech_lengths,
-                key=key,
-                tokenizer=tokenizer,
-                cache=cache,
-                frontend=frontend,
-                **kwargs,
-            )
-
-        result = results_chunk_tail
-
-        if _is_final:
             self.init_cache(cache, **kwargs)
 
-        if kwargs.get("output_dir"):
-            if not hasattr(self, "writer"):
-                self.writer = DatadirWriter(kwargs.get("output_dir"))
-
-        return result, meta_data
+        meta_data["extract_feat"] = f"{time.perf_counter() - time2:0.3f}"
+        return results, meta_data
 
     def export(self, **kwargs):
         """Export.

@@ -8,9 +8,10 @@ FunASR is useful far beyond a single offline transcription command. This page co
 |---|---|---|
 | Try FunASR in a browser | [Colab quickstart](../examples/colab/) | Run a public sample and upload your own audio before setting up a local environment. |
 | Transcribe one file locally | [README quick start](../README.md#quick-start) and [model selection guide](./model_selection.md) | Verify install, model choice, and model download in minutes. |
-| Compare accuracy and speed | [Benchmark report](https://modelscope.github.io/FunASR/benchmark.html) | Reproduce the 184-file long-audio benchmark before choosing a model. |
+| Compare accuracy and speed | [Historical benchmark](./benchmark/historical_asr.md) and [current methodology](./benchmark/rtf_reproducibility.md) | Read the historical results and provenance limits, then benchmark representative local audio before choosing a model. |
 | Migrate from Whisper/cloud ASR | [Migration guide](./migration_from_whisper.md) | Map existing pipelines to FunASR, benchmark representative audio, and plan a safe rollout. |
 | Build a private speech API | [OpenAI-compatible API example](../examples/openai_api/), [Gradio browser demo](../examples/openai_api/GRADIO.md), [client recipes](../examples/openai_api/CLIENTS.md), [JavaScript/TypeScript recipes](../examples/openai_api/JAVASCRIPT.md), and [workflow recipes](../examples/openai_api/WORKFLOWS.md) | Reuse LangChain, Dify, n8n, AutoGen, and other OpenAI-style clients without sending audio to a cloud ASR provider. |
+| Reuse an existing integration | [Community integrations](./community_projects.md) | Start from verified upstream paths for voice agents, local assistants, desktop subtitles, model serving, and Rust VAD. |
 | Add speech input to agents | [MCP server](../examples/mcp_server/) and [voice input](../examples/voice_input/) | Connect local ASR to Claude, Cursor, and desktop agent workflows. |
 | Choose a deployment path | [Deployment matrix](./deployment_matrix.md) | Compare Python API, OpenAI API, Docker Compose, Kubernetes, WebSocket, vLLM, MCP, batch, subtitles, and Triton. |
 | Serve streaming ASR | [Runtime service docs](../runtime/readme.md) | Run WebSocket or service-mode ASR for live captioning and call-center style workloads. |
@@ -80,6 +81,7 @@ For a deeper comparison of SenseVoice, Paraformer, Fun-ASR-Nano, streaming runti
 | Mandarin production ASR | Paraformer-Large | Mature choice for Chinese speech recognition. |
 | LLM-based ASR experiments | Fun-ASR-Nano | Pair with the [vLLM guide](./vllm_guide.md) when throughput matters. |
 | Speaker-aware transcripts | SenseVoice or Paraformer with `spk_model="cam++"` | Useful for meetings, interviews, and customer calls. |
+| Offline long-form diarized transcripts | [MOSS-Transcribe-Diarize](./moss_transcribe_diarize.md) | Joint offline long audio transcription with timestamps and anonymous speaker labels; not a realtime WebSocket path. |
 | Live audio | Runtime WebSocket service | Validate chunking, VAD, and endpointing with real traffic. |
 
 ## Share your result

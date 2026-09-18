@@ -14,6 +14,23 @@ import uuid
 
 DEFAULT_BASE_URL = "http://localhost:8000"
 DEFAULT_MODEL = "sensevoice"
+BACKEND_PROFILES = {
+    "funasr": {
+        "models": (DEFAULT_MODEL, "paraformer", "paraformer-en", "fun-asr-nano", "moss-transcribe-diarize"),
+        "formats": ("json", "verbose_json"),
+        "default_format": "verbose_json",
+    },
+    "vllm": {
+        "models": ("moss-transcribe-diarize",),
+        "formats": ("json", "diarized_json"),
+        "default_format": "diarized_json",
+    },
+    "sglang-omni": {
+        "models": ("OpenMOSS-Team/MOSS-Transcribe-Diarize",),
+        "formats": ("verbose_json",),
+        "default_format": "verbose_json",
+    },
+}
 
 
 def request_json(url: str, timeout: float) -> dict:
@@ -102,25 +119,35 @@ def safe_check(base_url: str, timeout: float) -> str:
         return f"Service check failed: {error}"
 
 
-def build_app(default_base_url: str, default_timeout: float):
+def build_app(default_base_url: str, default_timeout: float, *, backend: str = "funasr", default_model: str | None = None):
+    profile = BACKEND_PROFILES[backend]
+    models = list(profile["models"])
+    selected_model = default_model if default_model is not None else models[0]
+    if selected_model not in models:
+        models.append(selected_model)
+    model_choices = [
+        ("MOSS-Transcribe-Diarize" if value == "OpenMOSS-Team/MOSS-Transcribe-Diarize" else value, value)
+        for value in models
+    ]
+
     try:
         import gradio as gr
     except ImportError as error:
-        raise SystemExit("Install Gradio first: pip install gradio") from error
+        raise SystemExit("Install Gradio in the client environment: python -m pip install gradio==6.26.0") from error
 
     with gr.Blocks(title="FunASR OpenAI API Demo") as demo:
         gr.Markdown("# FunASR OpenAI-Compatible API Demo")
-        gr.Markdown("Start `python server.py --model sensevoice --device cuda --port 8000`, then upload or record audio here.")
 
         with gr.Row():
-            base_url = gr.Textbox(label="API base URL", value=default_base_url)
+            base_url = gr.Textbox(label="API base URL", value=default_base_url, min_width=240)
             model = gr.Dropdown(
                 label="Model alias",
-                choices=["sensevoice", "paraformer", "paraformer-en", "fun-asr-nano"],
-                value=DEFAULT_MODEL,
+                choices=model_choices,
+                value=selected_model,
+                min_width=240,
             )
-            response_format = gr.Radio(label="Response format", choices=["json", "verbose_json"], value="verbose_json")
-            timeout = gr.Number(label="Timeout seconds", value=default_timeout, precision=0)
+            response_format = gr.Radio(label="Response format", choices=profile["formats"], value=profile["default_format"], min_width=240)
+            timeout = gr.Number(label="Timeout seconds", value=default_timeout, precision=0, min_width=240)
 
         audio = gr.Audio(label="Audio", sources=["upload", "microphone"], type="filepath")
         with gr.Row():
@@ -140,16 +167,21 @@ def build_app(default_base_url: str, default_timeout: float):
     return demo
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a Gradio demo for the FunASR OpenAI-compatible API")
-    parser.add_argument("--base-url", default=os.getenv("BASE_URL", DEFAULT_BASE_URL), help="FunASR API base URL")
+    parser.add_argument("--base-url", default=os.getenv("BASE_URL", DEFAULT_BASE_URL), help="Backend origin without /v1; reached from the Gradio process")
+    parser.add_argument("--backend", choices=tuple(BACKEND_PROFILES), default="funasr", help="Transcription protocol profile (native profiles default to MOSS)")
+    parser.add_argument("--model", help="Exact served-model ID; overrides the profile's default model")
     parser.add_argument("--host", default=os.getenv("GRADIO_HOST", "127.0.0.1"), help="Gradio bind host")
     parser.add_argument("--port", type=int, default=int(os.getenv("GRADIO_PORT", "7860")), help="Gradio bind port")
     parser.add_argument("--timeout", type=float, default=float(os.getenv("TIMEOUT", "300")), help="HTTP timeout in seconds")
     parser.add_argument("--share", action="store_true", help="Create a temporary Gradio share link")
-    args = parser.parse_args()
+    return parser.parse_args(argv)
 
-    app = build_app(args.base_url, args.timeout)
+
+def main() -> None:
+    args = parse_args()
+    app = build_app(args.base_url, args.timeout, backend=args.backend, default_model=args.model)
     app.launch(server_name=args.host, server_port=args.port, share=args.share)
 
 

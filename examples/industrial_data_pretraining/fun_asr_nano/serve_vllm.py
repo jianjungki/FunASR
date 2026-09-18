@@ -67,6 +67,21 @@ _spk_model = None
 _args = None
 
 
+def prepare_audio_for_inference(audio_data, sr, target_sr=16000):
+    """Return mono float32 audio at target_sr for ASR inference."""
+    audio_data = np.asarray(audio_data)
+    if audio_data.ndim > 1:
+        channel_axis = -1 if audio_data.shape[-1] <= audio_data.shape[0] else 0
+        audio_data = audio_data.mean(axis=channel_axis)
+
+    if sr != target_sr:
+        import librosa
+        audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=target_sr)
+        sr = target_sr
+
+    return audio_data.astype(np.float32), sr
+
+
 def load_engine(args):
     global _engine, _vad_model, _spk_model, _args
     _args = args
@@ -78,7 +93,12 @@ def load_engine(args):
             gpu_memory_utilization=args.gpu_memory_utilization,
         )
         logger.info(f"Loading VAD: {args.vad_model}")
-        _vad_model = AutoModel(model=args.vad_model, device=args.device, disable_update=True)
+        _vad_model = AutoModel(
+            model=args.vad_model,
+            device=args.device,
+            disable_update=True,
+            max_single_segment_time=30000,
+        )
         if args.spk_model:
             logger.info(f"Loading SPK: {args.spk_model}")
             _spk_model = AutoModel(model=args.spk_model, device=args.device, disable_update=True)
@@ -90,14 +110,7 @@ def load_engine(args):
 def process_audio(audio_data, sr=16000, language=None, hotwords=None, 
                   use_vad=True, use_spk=False, use_timestamp=True):
     """Core processing: VAD segment → vLLM ASR → timestamps → SPK."""
-    if sr != 16000:
-        import librosa
-        audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=16000)
-        sr = 16000
-
-    if audio_data.ndim > 1:
-        audio_data = audio_data[:, 0]
-    audio_data = audio_data.astype(np.float32)
+    audio_data, sr = prepare_audio_for_inference(audio_data, sr)
 
     # VAD segmentation
     if use_vad and len(audio_data) > sr * 1:
@@ -184,6 +197,30 @@ def process_audio(audio_data, sr=16000, language=None, hotwords=None,
     }
 
 
+def build_openai_verbose_json(result, language=None):
+    """Build OpenAI-compatible verbose_json while preserving FunASR extensions."""
+    segments = []
+    for i, seg in enumerate(result["segments"]):
+        item = {
+            "id": i,
+            "start": seg["start"],
+            "end": seg["end"],
+            "text": seg["text"],
+            "words": seg.get("words", []),
+        }
+        if "speaker" in seg:
+            item["speaker"] = seg["speaker"]
+        segments.append(item)
+
+    return {
+        "task": "transcribe",
+        "language": language or "zh",
+        "duration": result["duration"],
+        "text": result["text"],
+        "segments": segments,
+    }
+
+
 # ============================================================
 # FastAPI App
 # ============================================================
@@ -240,22 +277,7 @@ async def openai_transcriptions(
     if response_format == "text":
         return JSONResponse(content=result["text"])
     elif response_format == "verbose_json":
-        return JSONResponse(content={
-            "task": "transcribe",
-            "language": language or "zh",
-            "duration": result["duration"],
-            "text": result["text"],
-            "segments": [
-                {
-                    "id": i,
-                    "start": seg["start"],
-                    "end": seg["end"],
-                    "text": seg["text"],
-                    "words": seg.get("words", []),
-                }
-                for i, seg in enumerate(result["segments"])
-            ],
-        })
+        return JSONResponse(content=build_openai_verbose_json(result, language=language))
     else:
         return JSONResponse(content={"text": result["text"]})
 

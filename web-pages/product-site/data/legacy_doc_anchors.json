@@ -1,0 +1,187 @@
+{
+  "source_ref": "origin/gh-pages",
+  "source_revision": "871ac766876c2f511550478d88c86aa3daab3172",
+  "additional_source_revisions": {
+    "benchmark.html": "67d63b80a246dc33749e43904c294e0409cd9183",
+    "zh/benchmark.html": "67d63b80a246dc33749e43904c294e0409cd9183"
+  },
+  "notes": "Published fragments map to the nearest current topic heading. Consolidated quickstart topics use workflow sections; removed standalone runtime diagnostics use the deployment readiness checklist. Source articles and API reference pages are not rewritten by this compatibility layer.",
+  "pages": {
+    "ja/agent.html": {"server": "http-サーバー", "sdk": "sdk-と-curl", "mcp": "mcp-サーバー", "voice": "デスクトップ音声入力", "subtitle": "字幕生成"},
+    "ko/agent.html": {"server": "http-서버", "sdk": "sdk와-curl", "workflows": "워크플로-연동", "mcp": "mcp-서버", "voice": "데스크톱-음성-입력", "subtitle": "자막-생성"},
+    "ja/benchmark.html": {"summary": "過去の概要", "table": "過去の結果", "method": "出典と制約", "choose": "現在の選び方"},
+    "ko/benchmark.html": {"summary": "과거-평가-요약", "table": "과거-평가-결과", "method": "출처와-한계", "choose": "현재-모델-선택"},
+    "tutorial.html": {
+      "quick": "1-produce-a-first-transcript",
+      "install": "1-produce-a-first-transcript",
+      "choose": "5-hotwords-and-language-boundaries",
+      "scenarios": "6-continue-with-a-specific-workflow",
+      "offline": "1-produce-a-first-transcript",
+      "streaming": "6-continue-with-a-specific-workflow",
+      "spk": "3-add-vad-punctuation-and-sentence-timestamps",
+      "emotion": "6-continue-with-a-specific-workflow",
+      "vad": "3-add-vad-punctuation-and-sentence-timestamps",
+      "punc": "3-add-vad-punctuation-and-sentence-timestamps",
+      "deploy-agent": "6-continue-with-a-specific-workflow",
+      "subtitle": "3-add-vad-punctuation-and-sentence-timestamps",
+      "export": "model-export-and-testing",
+      "faq": "6-continue-with-a-specific-workflow"
+    },
+    "zh/tutorial.html": {
+      "quick": "1-完成第一次转写",
+      "install": "1-完成第一次转写",
+      "choose": "5-热词与语言边界",
+      "scenarios": "6-进入具体工作流",
+      "offline": "1-完成第一次转写",
+      "streaming": "6-进入具体工作流",
+      "spk": "3-添加-vad标点与句级时间戳",
+      "emotion": "6-进入具体工作流",
+      "vad": "3-添加-vad标点与句级时间戳",
+      "punc": "3-添加-vad标点与句级时间戳",
+      "deploy-agent": "6-进入具体工作流",
+      "subtitle": "3-添加-vad标点与句级时间戳",
+      "export": "导出与运行时验证",
+      "faq": "6-进入具体工作流"
+    },
+    "training.html": {
+      "overview": "choose-the-work",
+      "data": "prepare-the-dataset",
+      "paraformer": "validate-small-then-launch",
+      "sensevoice": "sensevoice-preserve-rich-labels",
+      "nano": "funasrnano-chatml-jsonl",
+      "params": "validate-small-then-launch",
+      "multi-gpu": "validate-small-then-launch",
+      "deepspeed": "checkpoints-and-resume",
+      "monitor": "validate-small-then-launch",
+      "inference-after": "evaluate-and-export",
+      "tips": "validate-small-then-launch"
+    },
+    "zh/training.html": {
+      "overview": "先确定任务",
+      "data": "准备数据",
+      "paraformer": "先做小规模验证",
+      "sensevoice": "sensevoice保留富标签",
+      "nano": "funasrnanochatml-jsonl",
+      "params": "先做小规模验证",
+      "multi-gpu": "先做小规模验证",
+      "deepspeed": "checkpoint-与恢复",
+      "monitor": "先做小规模验证",
+      "inference-after": "评估与导出",
+      "tips": "先做小规模验证"
+    },
+    "model-registration.html": {
+      "architecture": "names-and-import-order",
+      "setup": "minimal-local-contract-example",
+      "understand": "inference-and-training-contracts",
+      "add-model": "minimal-local-contract-example",
+      "add-component": "names-and-import-order",
+      "standalone": "loading-reviewed-custom-code-and-weights",
+      "testing": "safety-and-verification",
+      "pitfalls": "safety-and-verification",
+      "contribute": "real-examples-and-boundaries"
+    },
+    "zh/model-registration.html": {
+      "architecture": "名称与导入顺序",
+      "setup": "最小本地接口示例",
+      "understand": "推理与训练接口",
+      "add-model": "最小本地接口示例",
+      "add-component": "名称与导入顺序",
+      "standalone": "加载已审查代码与权重",
+      "testing": "安全与验证",
+      "pitfalls": "安全与验证",
+      "contribute": "真实示例与边界"
+    },
+    "model-selection.html": {
+      "default": "fast-default-path",
+      "decision": "decision-table",
+      "aliases": "openai-compatible-api-aliases",
+      "runtime": "runtime-choice-by-workload",
+      "benchmark": "benchmark-before-committing"
+    },
+    "zh/model-selection.html": {
+      "default": "默认快速路径",
+      "decision": "决策表",
+      "aliases": "openai-兼容-api-别名",
+      "runtime": "按工作负载选择运行路径",
+      "benchmark": "上线前先-benchmark"
+    },
+    "moss-transcribe-diarize.html": {
+      "contract": "funasr-automodel-contract",
+      "server": "funasr-openai-compatible-service",
+      "runtimes": "choose-a-serving-path",
+      "evidence": "funasr-openai-compatible-service",
+      "boundaries": "production-validation"
+    },
+    "zh/moss-transcribe-diarize.html": {
+      "contract": "funasr-automodel-契约",
+      "server": "funasr-openai-兼容服务",
+      "runtimes": "选择服务后端",
+      "evidence": "funasr-openai-兼容服务",
+      "boundaries": "上线前验证"
+    },
+    "vllm.html": {
+      "overview": "2-vllm-engine-architecture",
+      "install": "1-installation--environment",
+      "offline": "3-offline-sdk-inference",
+      "streaming-sdk": "4-streaming-sdk-inference",
+      "websocket": "6-streaming-speech-recognition-service",
+      "dynamic-vad": "7-dynamic-vad",
+      "performance": "benchmark",
+      "api-reference": "8-api-reference",
+      "faq": "9-faq"
+    },
+    "zh/vllm.html": {
+      "overview": "2-vllm-推理引擎架构",
+      "install": "1-安装与环境",
+      "offline": "3-离线-sdk-推理",
+      "streaming-sdk": "4-流式-sdk-推理",
+      "websocket": "6-流式语音识别服务",
+      "dynamic-vad": "7-动态-vad",
+      "performance": "benchmark",
+      "api-reference": "8-api-参考",
+      "faq": "9-faq"
+    },
+    "deployment-matrix.html": {
+      "matrix": "quick-decision-table",
+      "choices": "common-choices",
+      "runtime-diagnostics": "readiness-checklist",
+      "checklist": "readiness-checklist",
+      "help": "when-to-open-an-issue"
+    },
+    "agent.html": {
+      "server": "http-server",
+      "sdk": "sdk-and-curl",
+      "workflows": "workflow-integrations",
+      "mcp": "mcp-server",
+      "voice": "desktop-voice-input",
+      "subtitle": "subtitle-generation"
+    },
+    "benchmark.html": {
+      "summary": "historical-summary",
+      "table": "historical-results",
+      "method": "provenance-and-limitations",
+      "choose": "choosing-a-current-path"
+    },
+    "zh/benchmark.html": {
+      "summary": "历史概览",
+      "table": "历史结果",
+      "method": "来源与限制",
+      "choose": "当前选型"
+    },
+    "zh/agent.html": {
+      "server": "http-服务",
+      "sdk": "sdk-与-curl",
+      "workflows": "工作流集成",
+      "mcp": "mcp-服务",
+      "voice": "桌面语音输入",
+      "subtitle": "字幕生成"
+    },
+    "zh/deployment-matrix.html": {
+      "matrix": "快速决策表",
+      "choices": "常见选择",
+      "runtime-diagnostics": "上线检查清单",
+      "checklist": "上线检查清单",
+      "help": "什么时候开-issue"
+    }
+  }
+}

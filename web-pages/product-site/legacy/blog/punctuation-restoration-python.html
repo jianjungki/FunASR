@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>文字都在，标点为什么还是断错？ | FunASR</title>
+<meta name="description" content="保留原始转写，生成标点候选，再检查归句和专名。">
+<link rel="icon" href="/logo.png">
+<link rel="canonical" href="https://www.funasr.com/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="zh" href="https://www.funasr.com/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="en" href="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="x-default" href="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="文字都在，标点为什么还是断错？">
+<meta property="og:description" content="保留原始转写，生成标点候选，再检查归句和专名。">
+<meta property="og:url" content="https://www.funasr.com/blog/punctuation-restoration-python.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"文字都在，标点为什么还是断错？","description":"保留原始转写，生成标点候选，再检查归句和专名。","datePublished":"2026-06-23","dateModified":"2026-09-10","author":{"@type":"Organization","name":"FunASR"},"publisher":{"@type":"Organization","name":"FunASR"},"mainEntityOfPage":"https://www.funasr.com/blog/punctuation-restoration-python.html"}</script>
+<style>body{margin:0;font-family:system-ui,sans-serif;color:#202827;line-height:1.8;background:#fff}*{box-sizing:border-box}.container{max-width:920px;margin:auto;padding:0 24px}a{color:#006a57;text-underline-offset:.15em}.nav{padding:14px 0;border-bottom:1px solid #dce3df}.nav .container{display:flex;gap:20px;align-items:center}.nav-logo{font-weight:700}.nav-links{margin-left:auto}article{padding:48px 0 64px}h1{font-size:2rem;line-height:1.3;letter-spacing:0}h2{font-size:1.4rem;margin-top:36px;letter-spacing:0}.lead{font-size:1.1rem}.meta{color:#515c56;font-size:.875rem}code{overflow-wrap:anywhere}pre{padding:16px;background:#f3f6f5;border:1px solid #dce3df;border-radius:6px;font-size:.875rem;white-space:pre-wrap;overflow-wrap:anywhere}.legacy-page pre[data-example]{white-space:pre-wrap;overflow-wrap:anywhere;padding-top:54px}blockquote{margin:24px 0;padding:8px 20px;border-left:3px solid #bd4770;background:#fcf6f8}details{margin:24px 0}summary{cursor:pointer;font-weight:600}footer{padding:24px;border-top:1px solid #dce3df}@media(max-width:700px){.container{padding:0 20px}h1{font-size:1.6rem}.nav-links{display:none}}</style>
+</head>
+<body>
+<nav class="nav"><div class="container"><a class="nav-logo" href="/">FunASR</a><a class="nav-links" href="/blog/">技术博客</a><a href="/en/blog/punctuation-restoration-python.html">English</a></div></nav>
+<article><div class="container">
+<h1>文字都在，标点为什么还是断错？</h1>
+<p class="meta">2026-06-23 · 更新 2026-09-10 · FunASR</p>
+<p class="lead" data-editorial="opening">转写没有漏字，读起来却像另一句话，问题可能出在标点归句。先别挪字幕时间，也别重跑整段音频：留下原始文本，单独生成标点候选，再比较意思有没有被改变。</p>
+<h2>1. 留一份原文，再生成候选</h2>
+<p data-editorial="environment">先按<a data-installation-guide href="/docs/installation.html">安装与环境验证指南</a>准备 CPU 环境，确认 PyTorch 与 torchaudio 配套且可导入，安装 <code>funasr==1.4.15</code> 并运行 <code>python -m pip check</code>。这里用独立的 <code>ct-punc</code> 文本模型，不需要音频或 VAD；首次运行仍需下载权重。</p>
+<pre data-example="punctuate">import json
+from funasr import AutoModel
+
+model = AutoModel(model="ct-punc", device="cpu", disable_update=True)
+texts = [
+    "我们都是木头人不许说话不许动",
+    "the meeting is at 3 pm please bring your laptop and the report",
+    "人不是石头人有主观价值",
+]
+observed = []
+for original in texts:
+    candidate = model.generate(input=original)[0]["text"]
+    observed.append({"original": original, "candidate": candidate})
+print(json.dumps(observed, ensure_ascii=False, indent=2))</pre>
+<p><code>original</code> 保留输入，<code>candidate</code> 单独保存模型结果。先保留空白和大小写，避免显示清洗掩盖差异；这些短文本是演示，不是准确率评测集。</p>
+<h2>2. 看看模型实际做了什么</h2>
+<pre data-example="observed">[
+  {
+    "original": "我们都是木头人不许说话不许动",
+    "candidate": "我们都是木头人，不许说话，不许动。"
+  },
+  {
+    "original": "the meeting is at 3 pm please bring your laptop and the report",
+    "candidate": " The meeting is at 3 pm, please bring your laptop and the report."
+  },
+  {
+    "original": "人不是石头人有主观价值",
+    "candidate": "人不是石头人有主观价值。"
+  }
+]</pre>
+<p>第一条得到了可读的停顿；英文结果包含句首大写，也包含一个前导空格。第三条只多了句号，仍没有把第二个“人”归到后半句。输出能读出来，不代表标点已经放对。</p>
+<blockquote data-editorial="manual-edit"><p><strong>人工编辑候选，不是本次模型输出：</strong><br>人不是石头，人有主观价值。</p></blockquote>
+<p data-editorial="case-boundary"><a href="https://github.com/modelscope/FunASR/issues/3644">一次社区断句反馈</a>区分了播放器时间修正和标点归句问题。这里用的是重新构造的短文本，不是该录音的完整上下文；不能据此认定原问题已修复，也不建议把很短的字幕间隔直接强拼。</p>
+<h2>3. 交付前，检查三个地方</h2>
+<ul><li><strong>语义归句：</strong>人名、否定词、引语和转折是否仍属于正确的句子？有音频时回听上下文，不只看句末符号。</li><li><strong>大小写与排版：</strong>独立模型实现对部分 ASCII token 调用 <code>.capitalize()</code>，也会重组空格。缩写、品牌名和混合大小写需要复核，不是无损的标点插入。</li><li><strong>句末完整性：</strong>实现可能把末尾逗号替换为句号或补句号。最后一个句号不是语义完整的证明；先保留原文再编辑。</li></ul>
+<p data-editorial="timing-boundary"><code>punc_array</code> 是标点类别，不是时间戳或置信度。独立文本调用不会告诉你句子在音频中的起止位置；不要靠补标点或整体挪字幕时间来声称精准对齐。ASR+VAD 流水线还有独立的文本重组逻辑，不能把这里的大小写表现泛化到所有调用路径。</p>
+<p data-editorial="native-boundary">使用 <a href="/docs/native-transformers.html">Fun-ASR-Nano 原生 Transformers</a>时，也先保留原始识别结果。<code>ct-punc</code> 是可选后处理，不是原生 Nano 自带的时间戳、说话人分离或实时流式能力；已有合理标点的结果不必再盲目处理一遍。</p>
+<p data-editorial="next-step">需要交付字幕时，接着走<a href="/blog/generate-subtitles-srt-vtt-from-audio-video.html">SRT、VTT 与回听检查流程</a>，把文字编辑和时间校验分开完成。</p>
+<details><summary>本次复现环境与实现依据</summary><p>2026-09-10：FunASR 1.4.15，PyTorch / torchaudio 2.10.0 CPU，ModelScope <a href="https://modelscope.cn/models/iic/punc_ct-transformer_cn-en-common-vocab471067-large">iic/punc_ct-transformer_cn-en-common-vocab471067-large</a>，缓存 revision 为 <code>master</code>。它会变化，不等于固定权重；本次 <code>model.pt</code> SHA256 为 <code>7176cae922a872e130e6b88aef9a1153581711baf79c9124c7c95be383cd6f81</code>。代码与权重许可应分别核对模型卡和仓库，本文不替代授权说明。</p><p>可核对<a href="https://github.com/modelscope/FunASR/blob/83a3e3dc9ceb7b70dd3327c8c9b7a79bdb8f3a8d/funasr/models/ct_transformer/model.py#L382">大小写与句末处理</a>及<a href="https://github.com/modelscope/FunASR/blob/83a3e3dc9ceb7b70dd3327c8c9b7a79bdb8f3a8d/funasr/auto/auto_model.py#L1086">流水线文本重组</a>。单次输出不代表准确率、实时延迟或所有权重版本的结果。</p></details>
+</div></article>
+<footer><div class="container"><a href="https://github.com/modelscope/FunASR">FunASR GitHub</a></div></footer>
+</body>
+</html>

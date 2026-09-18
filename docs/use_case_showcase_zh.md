@@ -11,6 +11,7 @@ FunASR 不只是一个离线转写命令。这个页面把常见的评测、部�
 | 对比准确率和速度 | [性能评测报告](https://modelscope.github.io/FunASR/zh/benchmark.html) | 选型前先查看 184 条长音频评测结果。 |
 | 从 Whisper/云端 ASR 迁移 | [迁移指南](./migration_from_whisper_zh.md) | 将现有流水线映射到 FunASR，用代表性音频评测并规划安全上线。 |
 | 搭建私有语音 API | [OpenAI 兼容 API 示例](../examples/openai_api/README_zh.md)、[Gradio 浏览器 Demo](../examples/openai_api/GRADIO_zh.md)、[客户端配方](../examples/openai_api/CLIENTS.md)、[JavaScript/TypeScript 配方](../examples/openai_api/JAVASCRIPT_zh.md) 和 [工作流配方](../examples/openai_api/WORKFLOWS_zh.md) | 复用 LangChain、Dify、n8n、AutoGen 等 OpenAI 风格客户端，音频不出内网。 |
+| 复用已有生态集成 | [社区集成](./community_projects_zh.md) | 从已验证的上游路径开始接入语音 Agent、本地助手、桌面字幕、模型服务和 Rust VAD。 |
 | 给 Agent 增加语音输入 | [MCP 服务](../examples/mcp_server/) 和 [语音输入示例](../examples/voice_input/) | 将本地 ASR 接入 Claude、Cursor 和桌面 Agent 工作流。 |
 | 选择部署路径 | [部署选型表](./deployment_matrix_zh.md) | 对比 Python API、OpenAI API、Docker Compose、Kubernetes、WebSocket、vLLM、MCP、批处理、字幕和 Triton。 |
 | 部署流式 ASR | [Runtime 服务文档](../runtime/readme_cn.md) | 面向实时字幕、客服、会议等低延迟场景。 |
@@ -80,6 +81,7 @@ curl http://localhost:8000/v1/audio/transcriptions \
 | 中文生产 ASR | Paraformer-Large | 中文语音识别的成熟选择。 |
 | LLM-based ASR 实验 | Fun-ASR-Nano | 吞吐敏感时配合 [vLLM 指南](./vllm_guide.md)。 |
 | 带说话人信息的转写 | SenseVoice 或 Paraformer + `spk_model="cam++"` | 适合会议、访谈、客服录音。 |
+| 离线长音频一体化转写与说话人标签 | [MOSS-Transcribe-Diarize](./moss_transcribe_diarize_zh.md) | 一次生成离线长音频转写、时间戳和匿名说话人标签；不是实时 WebSocket 路径。 |
 | 实时音频 | Runtime WebSocket 服务 | 用真实流量验证分块、VAD 和断句。 |
 
 ## 分享你的结果

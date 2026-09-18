@@ -1,0 +1,37 @@
+name: Validate Gradio client
+
+on:
+  pull_request:
+    paths:
+      - "examples/openai_api/gradio_app.py"
+      - "examples/openai_api/GRADIO*.md"
+      - "tests/test_gradio_app.py"
+      - ".github/workflows/test-gradio-client.yml"
+  push:
+    branches: [main]
+    paths:
+      - "examples/openai_api/gradio_app.py"
+      - "examples/openai_api/GRADIO*.md"
+      - "tests/test_gradio_app.py"
+      - ".github/workflows/test-gradio-client.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gradio-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GRADIO_ANALYTICS_ENABLED: "False"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the isolated client test environment
+        run: python -m pip install gradio==6.26.0 pytest
+      - name: Check client dependencies
+        run: python -m pip check
+      - name: Test real UI components and local HTTP transport without model downloads
+        run: python -m pytest -q tests/test_gradio_app.py

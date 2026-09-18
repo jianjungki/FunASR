@@ -1,118 +1,76 @@
-# FunASR Runtime Roadmap
-中文文档（[点击此处](./readme_cn.md)）
+# FunASR Runtime Deployment Guide
 
-FunASR is a speech recognition framework developed by the Speech Lab of DAMO Academy, which integrates industrial-level models in the fields of speech endpoint detection, speech recognition, punctuation segmentation, and more. 
-It has attracted many developers to participate in experiencing and developing. To solve the last mile of industrial landing and integrate models into business, we have developed the FunASR runtime-SDK. The SDK supports several service deployments, including:
+[简体中文](./readme_cn.md) | English
 
-- File transcription service, Mandarin, CPU version, done
-- The real-time transcription service, Mandarin (CPU), done
-- File transcription service, English, CPU version, done
-- File transcription service, Mandarin, GPU version, done
-- and more.
+Select a model and protocol before selecting a container or binary. Start at the
+[deployment matrix](../docs/deployment_matrix.md) for versioned commands,
+tested hardware and known limits. Older release notes are preserved in
+[release history](./release-history.md); they are not a current capacity promise.
+
+## Choose a serving path
+
+| Need | Entry point | Boundary |
+| --- | --- | --- |
+| Python HTTP transcription | [OpenAI-compatible server](../examples/openai_api/README.md) | Application API compatibility is separate from model accuracy or realtime support. |
+| Fun-ASR-Nano decoder acceleration | [vLLM guide](../docs/vllm_guide.md) | Native vLLM and FunASR split-engine have different checkpoint/layout and API contracts. |
+| Local portable GGUF inference | [llama.cpp](./llama.cpp/README.md) | Use the platform/backend package and matching GGUF model; build success is not every-device validation. |
+| Native ONNX CPU inference | [ONNX Runtime](./onnxruntime/readme.md) | See the [JSONL/timestamp output contract](./docs/onnxruntime_binary_output.md). |
+| Offline unified transcription and diarization | [MOSS-Transcribe-Diarize](../docs/moss_transcribe_diarize.md) | Third-party OpenMOSS model; offline anonymous speaker labels, not realtime or known-person identity. |
+| Long-lived streaming or two-pass sessions | [C++ WebSocket protocol](./docs/websocket_protocol.md) | Do not send OpenAI HTTP requests or another runtime's WebSocket messages to this endpoint. |
+| Cluster-managed private HTTP service | [Kubernetes templates](../examples/openai_api/kubernetes/README.md) | Configure resources, persistent cache, probes, upload limits and gateway policy for the target cluster. |
 
 ## File Transcription Service, Mandarin (GPU)
 
-Currently, the FunASR runtime-SDK supports the deployment of file transcription service, Mandarin (GPU version), with a complete speech recognition chain that can transcribe tens of hours of audio into punctuated text, and supports recognition for more than a hundred concurrent streams. 
-
-To meet the needs of different users, we have prepared different tutorials with text and images for both novice and advanced developers.
-
-### Whats-new
-- 2024/09/26: File Transcription Service 2.0 GPU released, Fix GPU memory leak, docker image version funasr-runtime-sdk-gpu-0.2.0 (d280bf7e495b)
-- 2024/07/01: File Transcription Service 1.1 GPU released, optimize BladeDISC model compatibility issues, docker image version funasr-runtime-sdk-gpu-0.1.1 (8875cbf9b99e)
-- 2024/06/27: File Transcription Service 1.0 GPU released, supporting dynamic batch processing and multi-threading concurrency. In the long audio test set, the single-thread RTF is 0.0076, and multi-threads' speedup is 1200+ (compared to 330+ on CPU), ref to([docs](./docs/benchmark_libtorch_cpp.md)) , docker image version funasr-runtime-sdk-gpu-0.1.0 (b86066f4d018)
-
-### Advanced Development Guide
-
-The documentation mainly targets advanced developers who require modifications and customization of the service. It supports downloading model deployments from modelscope and also supports deploying models that users have fine-tuned. For detailed information, please refer to the documentation available by [docs](./docs/SDK_advanced_guide_offline_gpu.md)
-
+Follow the [GPU development guide](./docs/SDK_advanced_guide_offline_gpu.md).
+The guide covers the native runtime stack; it is not an installation recipe for
+every model in the Model Zoo. Benchmark your exact image, weights and GPU.
 
 ## File Transcription Service, English (CPU)
 
-Currently, the FunASR runtime-SDK supports the deployment of file transcription service, English (CPU version), with a complete speech recognition chain that can transcribe tens of hours of audio into punctuated text, and supports recognition for more than a hundred concurrent streams. 
+Use the [English tutorial](./docs/SDK_tutorial_en.md) and
+[advanced configuration](./docs/SDK_advanced_guide_offline_en.md).
+Select the English checkpoint rather than inferring language coverage from the
+container name alone.
 
-To meet the needs of different users, we have prepared different tutorials with text and images for both novice and advanced developers.
+## Real-time Transcription Service, Mandarin (CPU)
 
-### Whats-new
-- 2024/09/26: Fix memory leak, docker image version funasr-runtime-sdk-en-cpu-0.1.7 (f6c5a7b59eb6).
-- 2024/05/15: Adapting to FunASR 1.0 model structure, docker image version funasr-runtime-sdk-en-cpu-0.1.6 (84d781d07997).
-- 2024/03/05: docker image supports ARM64 platform, update modelscope, docker image version funasr-runtime-sdk-en-cpu-0.1.5 (7cca2abc5901).
-- 2024/01/25: Optimized the VAD (Voice Activity Detection) data processing method,significantly reducing peak memory usage,memory leak optimization, docker image version funasr-runtime-sdk-en-cpu-0.1.3 (c00f9ce7a195).
-- 2024/01/03: Fixed known crash issues as well as memory leak problems, docker image version funasr-runtime-sdk-en-cpu-0.1.2 (0cdd9f4a4bb5).
-- 2023/11/08: Adaptation to runtime structure changes (FunASR/funasr/runtime -> FunASR/runtime), docker image version funasr-runtime-sdk-en-cpu-0.1.1 (27017f70f72a).
-- 2023/10/16: English File Transcription Service 1.0 released, docker image version funasr-runtime-sdk-en-cpu-0.1.0 (e0de03eb0163), refer to the detailed documentation（[here](https://mp.weixin.qq.com/s/DZZUTj-6xwFfi-96ml--4A)）
-
-### Technical Principles
-
-The technical principles and documentation behind FunASR explain the underlying technology, recognition accuracy, computational efficiency, and core advantages of the framework, including convenience, high precision, high efficiency, and support for long audio chains. For detailed information, please refer to the documentation available by [docs](https://mp.weixin.qq.com/s/DZZUTj-6xwFfi-96ml--4A). 
-
-### Deployment Tutorial
-
-The documentation mainly targets novice users who have no need for modifications or customization. It supports downloading model deployments from modelscope and also supports deploying models that users have fine-tuned. For detailed tutorials, please refer to [docs](docs/SDK_tutorial_en.md).
-
-### Advanced Development Guide
-
-The documentation mainly targets advanced developers who require modifications and customization of the service. It supports downloading model deployments from modelscope and also supports deploying models that users have fine-tuned. For detailed information, please refer to the documentation available by [docs](./docs/SDK_advanced_guide_offline_en.md)
-
-
-## The real-time transcription service, Mandarin (CPU)
-
-The FunASR real-time speech-to-text service software package not only performs real-time speech-to-text conversion, but also allows high-precision transcription text correction at the end of each sentence and outputs text with punctuation, supporting high-concurrency multiple requests.
-In order to meet the needs of different users for different scenarios, different tutorials are prepared:
-
-### Whats-new+
-- 2024/10/29: Real-time Transcription Service 1.12 released，The 2pass-offline mode supports the SensevoiceSmal model, docker image version funasr-runtime-sdk-online-cpu-0.1.12 (f5febc5cf13a)
-- 2024/09/26: Real-time Transcription Service 1.11 released，Fix memory leak, docker image version funasr-runtime-sdk-online-cpu-0.1.11 (e51a36c42771)
-- 2024/05/15: Real-time Transcription Service 1.10 released，adapting to FunASR 1.0 model structure, docker image version funasr-runtime-sdk-online-cpu-0.1.10 (1c2adfcff84d)
-- 2024/03/05: Real-time Transcription Service 1.9 released，docker image supports ARM64 platform, update modelscope, docker image version funasr-runtime-sdk-online-cpu-0.1.9 (4a875e08c7a2)
-- 2024/01/25: Real-time Transcription Service 1.7 released，optimization of the client-side, docker image version funasr-runtime-sdk-online-cpu-0.1.7 (2aa23805572e)
-- 2024/01/03: Real-time Transcription Service 1.6 released，The 2pass-offline mode supports Ngram language model decoding and WFST hotwords, while also addressing known crash issues and memory leak problems, docker image version funasr-runtime-sdk-online-cpu-0.1.6 (f99925110d27)
-- 2023/11/09: Real-time Transcription Service 1.5 released，fix bug: without online results, docker image version funasr-runtime-sdk-online-cpu-0.1.5 (b16584b6d38b)
-- 2023/11/08: Real-time Transcription Service 1.4 released, supporting server-side loading of hotwords (updated hotword communication protocol), adaptation to runtime structure changes (FunASR/funasr/runtime -> FunASR/runtime), docker image version funasr-runtime-sdk-online-cpu-0.1.4(691974017c38).
-- 2023/09/19: Real-time Transcription Service 1.2 released, supporting hotwords, timestamps, and ITN model in 2pass mode, docker image version funasr-runtime-sdk-online-cpu-0.1.2 (7222c5319bcf).
-- 2023/08/11: Real-time Transcription Service 1.1 released, addressing some known bugs (including server crashes), docker image version funasr-runtime-sdk-online-cpu-0.1.1 (bdbdd0b27dee).
-- 2023/08/07: Real-time Transcription Service 1.0 released, docker image version funasr-runtime-sdk-online-cpu-0.1.0(bdbdd0b27dee), refer to the detailed documentation（[here](https://mp.weixin.qq.com/s/8He081-FM-9IEI4D-lxZ9w)）
-
-### Convenient Deployment Tutorial
-
-This is suitable for scenarios where there is no need to modify the service deployment SDK and the deployed model comes from ModelScope or is finetuned by the user. For detailed tutorials, please refer to [docs](./docs/SDK_tutorial_online.md)
-
-
-### Development Guide
-
-This is suitable for scenarios where there is a need to modify the service deployment SDK and the deployed model comes from ModelScope or is finetuned by the user. For detailed documentation, please refer to [docs](./docs/SDK_advanced_guide_online.md)
-
-### Technology Principles Revealed
-
-The document introduces the technology principles behind the service, recognition accuracy, computing efficiency, and core advantages: convenience, high precision, high efficiency, and long audio chain. For detailed documentation, please refer to [docs](https://mp.weixin.qq.com/s/8He081-FM-9IEI4D-lxZ9w).
-
+Use the [streaming tutorial](./docs/SDK_tutorial_online.md), then verify the
+[protocol](./docs/websocket_protocol.md) and
+[matching multi-client example](./python/websocket/README.md).
+Validate sample rate, chunking, finalization, reconnect behavior and session
+isolation with actual audio. C++ two-pass and Fun-ASR-Nano Python streaming are
+different implementations. The separate [Nano realtime benchmark](../docs/benchmark/realtime_ws_benchmark.md)
+uses Nano's `START`/`STOP` protocol and must not be used against the C++ endpoint.
 
 ## File Transcription Service, Mandarin (CPU)
 
-Currently, the FunASR runtime-SDK supports the deployment of file transcription service, Mandarin (CPU version), with a complete speech recognition chain that can transcribe tens of hours of audio into punctuated text, and supports recognition for more than a hundred concurrent streams. 
+Use the [offline tutorial](./docs/SDK_tutorial.md) and
+[advanced configuration](./docs/SDK_advanced_guide_offline.md).
+[Model selection](../docs/model_selection.md) explains when Paraformer,
+SenseVoice or a different recognizer fits the workload.
 
-To meet the needs of different users, we have prepared different tutorials with text and images for both novice and advanced developers.
+## Client and platform adapters
 
-### Whats-new
-- 2024/09/26: File Transcription Service 4.6 released, Fix memory leak & Support the SensevoiceSmall onnx model, docker image version funasr-runtime-sdk-cpu-0.4.6 (8651c6b8a1ae)
-- 2024/05/15: File Transcription Service 4.5 released, adapting to FunASR 1.0 model structure, docker image version funasr-runtime-sdk-cpu-0.4.5 (058b9882ae67)
-- 2024/03/05: File Transcription Service 4.4 released, docker image supports ARM64 platform, update modelscope, docker image version funasr-runtime-sdk-cpu-0.4.4 (2dc87b86dc49)
-- 2024/01/25: File Transcription Service 4.2 released, optimized the VAD (Voice Activity Detection) data processing method, significantly reducing peak memory usage, memory leak optimization, docker image version funasr-runtime-sdk-cpu-0.4.2 (befdc7b179ed)
-- 2024/01/08: File Transcription Service 4.1 released, optimized format sentence-level timestamps, docker image version funasr-runtime-sdk-cpu-0.4.1 (0250f8ef981b)
-- 2024/01/03: File Transcription Service 4.0 released, Added support for 8k models, optimized timestamp mismatch issues and added sentence-level timestamps, improved the effectiveness of English word FST hotwords, supported automated configuration of thread parameters, and fixed known crash issues as well as memory leak problems, docker image version funasr-runtime-sdk-cpu-0.4.0 (c4483ee08f04)
-- 2023/11/08: File Transcription Service 3.0 released, supporting punctuation large model, Ngram model, fst hotwords (updated hotword communication protocol), server-side loading of hotwords, adaptation to runtime structure changes (FunASR/funasr/runtime -> FunASR/runtime), docker image version funasr-runtime-sdk-cpu-0.3.0 (caa64bddbb43), refer to the detailed documentation （[here]()）
-- 2023/09/19: File Transcription Service 2.2 released, supporting ITN model, docker image version funasr-runtime-sdk-cpu-0.2.2 (2c5286be13e9).
-- 2023/08/22: File Transcription Service 2.0 released, integrated ffmpeg to support various audio and video inputs, supporting hotword model and timestamp model, docker image version funasr-runtime-sdk-cpu-0.2.0 (1ad3d19e0707), refer to the detailed documentation （[here](https://mp.weixin.qq.com/s/oJHe0MKDqTeuIFH-F7GHMg)）
-- 2023/07/03: File Transcription Service 1.0 released, docker image version funasr-runtime-sdk-cpu-0.1.0 (1ad3d19e0707), refer to the detailed documentation （[here](https://mp.weixin.qq.com/s/DHQwbgdBWcda0w_L60iUww)）
+- [Python WebSocket](./python/websocket/README.md), [Python HTTP](./python/http/README.md), [Java](./java/readme.md), [Go](./golang/websocket/readme.md).
+- [Browser client](./html5/readme.md), [gRPC](./grpc/Readme.md), [Triton](./triton_gpu/README.md).
+- [Android](./android/readme.md) and [iOS](./ios/Readme.md) are separate porting guides, not a guarantee that each desktop release supports those devices.
 
-### Technical Principles
+Follow each adapter's protocol and dependency instructions. An SDK example is
+not automatically a supported production package for every target platform.
 
-The technical principles and documentation behind FunASR explain the underlying technology, recognition accuracy, computational efficiency, and core advantages of the framework, including convenience, high precision, high efficiency, and support for long audio chains. For detailed information, please refer to the documentation available by [docs](https://mp.weixin.qq.com/s/DHQwbgdBWcda0w_L60iUww). 
+## Production checklist
 
-### Deployment Tutorial
+1. Record the exact commit/image digest, model revision, configuration and target hardware.
+2. Run a known-audio transcription and inspect the raw output, not only a health endpoint.
+3. Measure representative quality, latency, concurrency, memory and failure behavior.
+4. Add authentication, TLS, request limits and privacy controls using the
+   [security guide](../examples/openai_api/SECURITY.md).
+5. Preserve the previous model/artifact/configuration and exercise rollback.
+6. Report unresolved failures with the [troubleshooting checklist](../docs/troubleshooting.md);
+   published code is not proof that a reporter's hardware issue is resolved.
 
-The documentation mainly targets novice users who have no need for modifications or customization. It supports downloading model deployments from modelscope and also supports deploying models that users have fine-tuned. For detailed tutorials, please refer to [docs](docs/SDK_tutorial.md).
+## Historical releases
 
-### Advanced Development Guide
-
-The documentation mainly targets advanced developers who require modifications and customization of the service. It supports downloading model deployments from modelscope and also supports deploying models that users have fine-tuned. For detailed information, please refer to the documentation available by [docs](./docs/SDK_advanced_guide_offline.md)
-
+The [full release history](./release-history.md) preserves earlier Docker tags,
+dates and benchmark references. For a new deployment, use a current
+[deployment manual](https://www.funasr.com/en/deploy/) and its explicit test boundary.

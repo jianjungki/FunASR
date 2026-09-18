@@ -1,8 +1,10 @@
 # Fun-ASR
 
+> **Only need native Fun-ASR-Nano transcription?** Start with [Transformers 5.17.0](../../../docs/transformers_native.md). It loads the separate `-hf` checkpoint without the FunASR toolkit. This page covers the `funasr.AutoModel` toolkit path; do not mix dependencies, parameters or output contracts.
+
 「[简体中文](README_zh.md)」|「English」
 
-Fun-ASR is an end-to-end speech recognition large model launched by Tongyi Lab. It is trained on tens of millions of hours of real speech data, possessing powerful contextual understanding capabilities and industry adaptability. It supports low-latency real-time transcription and covers 31 languages. It excels in vertical domains such as education and finance, accurately recognizing professional terminology and industry expressions, effectively addressing challenges like "hallucination" generation and language confusion, achieving "clear hearing, understanding meaning, and accurate writing."
+Fun-ASR is an end-to-end speech recognition large model launched by Tongyi Lab. It is trained on tens of millions of hours of real speech data, possessing powerful contextual understanding capabilities and industry adaptability. The Nano checkpoint supports low-latency real-time transcription for Chinese, English, and Japanese, plus Chinese dialect groups and regional accents; the separate MLT-Nano checkpoint extends coverage to 31 languages. It excels in vertical domains such as education and finance, accurately recognizing professional terminology and industry expressions, effectively addressing challenges like "hallucination" generation and language confusion, achieving "clear hearing, understanding meaning, and accurate writing."
 
 <div align="center">
 <img src="images/funasr-v2.png">
@@ -34,7 +36,7 @@ Online Experience:
 
 # What's New 🔥
 
-- 2025/12: [Fun-ASR-Nano-2512](https://modelscope.cn/models/FunAudioLLM/Fun-ASR-Nano-2512) is an end-to-end speech recognition large model trained on tens of millions of hours real speech data. It supports low-latency real-time transcription and covers 31 languages.
+- 2025/12: [Fun-ASR-Nano-2512](https://modelscope.cn/models/FunAudioLLM/Fun-ASR-Nano-2512) is an end-to-end speech recognition large model trained on tens of millions of hours real speech data. It supports low-latency real-time transcription for Chinese, English, and Japanese, plus Chinese dialect groups and regional accents; the separate MLT-Nano checkpoint covers 31 languages.
 - 2024/7: [FunASR](https://github.com/modelscope/FunASR) is a fundamental speech recognition toolkit that offers a variety of features, including speech recognition (ASR), Voice Activity Detection (VAD), Punctuation Restoration, Language Models, Speaker Verification, Speaker Diarization and multi-talker ASR.
 
 # Core Features 🎯
@@ -45,13 +47,13 @@ Online Experience:
 - **Chinese Dialects and Regional Accents:**
   - Supports **7 major dialects**: Wu, Cantonese, Min, Hakka, Gan, Xiang, Jin
   - Covers **26 regional accents**: including Henan, Shaanxi, Hubei, Sichuan, Chongqing, Yunnan, Guizhou, Guangdong, Guangxi and more than 20 other regions
-- **Multi-language Free Speech:** Supports recognition of **31 languages**, with focused optimization on East and Southeast Asian languages, supporting free language switching and mixed recognition.
+- **Multi-language Free Speech:** The separate **Fun-ASR-MLT-Nano** checkpoint supports recognition of **31 languages**, with focused optimization on East and Southeast Asian languages, supporting free language switching and mixed recognition.
 - **Music Background Lyric Recognition:** Enhanced speech recognition performance under music background interference, supporting accurate recognition of lyric content in songs.
 
 # Environment Setup 🐍
 
 ```shell
-git clone https://github.com/FunAudioLLM/Fun-ASR.git
+git clone https://github.com/QwenAudio/Fun-ASR.git
 cd Fun-ASR
 pip install -r requirements.txt
 ```
@@ -63,6 +65,12 @@ pip install -r requirements.txt
 - [x] Support returning timestamps
 - [ ] Support speaker diarization
 - [x] Support model training
+
+> [!NOTE]
+> Character-level timestamps require a checkpoint with complete `ctc_decoder.*` and
+> `ctc.*` weights. The current `Fun-ASR-MLT-Nano-2512` checkpoint does not include
+> those weights, so FunASR logs a warning and returns text without `timestamps` or
+> `ctc_timestamps` instead of aligning with uninitialized layers.
 
 # Usage 🛠️
 

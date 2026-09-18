@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The words are right. Why is the punctuation wrong? | FunASR</title>
+<meta name="description" content="Keep the original, generate a candidate, then review sentence meaning and names.">
+<link rel="icon" href="/logo.png">
+<link rel="canonical" href="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="zh" href="https://www.funasr.com/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="en" href="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<link rel="alternate" hreflang="x-default" href="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The words are right. Why is the punctuation wrong?">
+<meta property="og:description" content="Keep the original, generate a candidate, then review sentence meaning and names.">
+<meta property="og:url" content="https://www.funasr.com/en/blog/punctuation-restoration-python.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"The words are right. Why is the punctuation wrong?","description":"Keep the original, generate a candidate, then review sentence meaning and names.","datePublished":"2026-06-23","dateModified":"2026-09-10","author":{"@type":"Organization","name":"FunASR"},"publisher":{"@type":"Organization","name":"FunASR"},"mainEntityOfPage":"https://www.funasr.com/en/blog/punctuation-restoration-python.html"}</script>
+<style>body{margin:0;font-family:system-ui,sans-serif;color:#202827;line-height:1.8;background:#fff}*{box-sizing:border-box}.container{max-width:920px;margin:auto;padding:0 24px}a{color:#006a57;text-underline-offset:.15em}.nav{padding:14px 0;border-bottom:1px solid #dce3df}.nav .container{display:flex;gap:20px;align-items:center}.nav-logo{font-weight:700}.nav-links{margin-left:auto}article{padding:48px 0 64px}h1{font-size:2rem;line-height:1.3;letter-spacing:0}h2{font-size:1.4rem;margin-top:36px;letter-spacing:0}.lead{font-size:1.1rem}.meta{color:#515c56;font-size:.875rem}code{overflow-wrap:anywhere}pre{padding:16px;background:#f3f6f5;border:1px solid #dce3df;border-radius:6px;font-size:.875rem;white-space:pre-wrap;overflow-wrap:anywhere}.legacy-page pre[data-example]{white-space:pre-wrap;overflow-wrap:anywhere;padding-top:54px}blockquote{margin:24px 0;padding:8px 20px;border-left:3px solid #bd4770;background:#fcf6f8}details{margin:24px 0}summary{cursor:pointer;font-weight:600}footer{padding:24px;border-top:1px solid #dce3df}@media(max-width:700px){.container{padding:0 20px}h1{font-size:1.6rem}.nav-links{display:none}}</style>
+</head>
+<body>
+<nav class="nav"><div class="container"><a class="nav-logo" href="/en/">FunASR</a><a class="nav-links" href="/en/blog/">Blog</a><a href="/blog/punctuation-restoration-python.html">中文</a></div></nav>
+<article><div class="container">
+<h1>The words are right. Why is the punctuation wrong?</h1>
+<p class="meta">2026-06-23 · Updated 2026-09-10 · FunASR</p>
+<p class="lead" data-editorial="opening">A transcript can keep every word and still split a thought in the wrong place. Before shifting subtitle times or transcribing the recording again, keep the raw text, generate a separate punctuation candidate, and check whether its meaning survives.</p>
+<h2>1. Keep the input and generate a candidate</h2>
+<p data-editorial="environment">Follow the <a data-installation-guide href="/en/docs/installation.html">installation and environment checks</a> for CPU. Confirm compatible PyTorch and torchaudio imports, install <code>funasr==1.4.15</code>, and run <code>python -m pip check</code>. This standalone <code>ct-punc</code> call takes text, not audio or VAD output. The first run still downloads model weights.</p>
+<pre data-example="punctuate">import json
+from funasr import AutoModel
+
+model = AutoModel(model="ct-punc", device="cpu", disable_update=True)
+texts = [
+    "我们都是木头人不许说话不许动",
+    "the meeting is at 3 pm please bring your laptop and the report",
+    "人不是石头人有主观价值",
+]
+observed = []
+for original in texts:
+    candidate = model.generate(input=original)[0]["text"]
+    observed.append({"original": original, "candidate": candidate})
+print(json.dumps(observed, ensure_ascii=False, indent=2))</pre>
+<p>Keep <code>original</code> unchanged and store <code>candidate</code> separately. Preserve whitespace and case initially so display cleanup does not hide differences. These short examples are demonstrations, not an accuracy benchmark.</p>
+<h2>2. Inspect what the model actually changed</h2>
+<pre data-example="observed">[
+  {
+    "original": "我们都是木头人不许说话不许动",
+    "candidate": "我们都是木头人，不许说话，不许动。"
+  },
+  {
+    "original": "the meeting is at 3 pm please bring your laptop and the report",
+    "candidate": " The meeting is at 3 pm, please bring your laptop and the report."
+  },
+  {
+    "original": "人不是石头人有主观价值",
+    "candidate": "人不是石头人有主观价值。"
+  }
+]</pre>
+<p>The first result adds readable pauses. The English result capitalizes the opening word but also contains a leading space. The last Chinese result only adds a full stop: it does not move the second “人” into the next clause. A readable string is not necessarily a correctly punctuated sentence.</p>
+<blockquote data-editorial="manual-edit"><p><strong>A human edit, not the model output above:</strong><br>人不是石头，人有主观价值。</p></blockquote>
+<p data-editorial="case-boundary">A <a href="https://github.com/modelscope/FunASR/issues/3644">community sentence-boundary report</a> separated player timing adjustments from punctuation errors. This is a reconstructed short text, not that recording's full context. It does not establish that the reported problem is fixed, or justify joining subtitle segments solely because the gap is short.</p>
+<h2>3. Review three things before delivery</h2>
+<ul><li><strong>Sentence meaning:</strong> do names, negation, quotations and contrast still belong to the right clause? Listen to the surrounding audio when available, not just an isolated subtitle.</li><li><strong>Case and layout:</strong> the standalone implementation calls <code>.capitalize()</code> on some ASCII tokens and rebuilds spaces. Check acronyms, brands and mixed-case names; this is not lossless punctuation insertion.</li><li><strong>The ending:</strong> implementation rules can replace a trailing comma or add a full stop. A final period does not prove that the thought is complete. Keep the input before editing.</li></ul>
+<p data-editorial="timing-boundary"><code>punc_array</code> contains punctuation classes, not timestamps or confidence scores. A standalone text call does not locate the sentence in audio. Adding punctuation or shifting subtitle times cannot establish precise alignment. ASR+VAD pipelines also have separate text-reassembly logic, so their casing behavior need not match this standalone call.</p>
+<p data-editorial="native-boundary">With <a href="/en/docs/native-transformers.html">native Fun-ASR-Nano in Transformers</a>, keep the original recognition result too. <code>ct-punc</code> is optional postprocessing, not native Nano timestamps, diarization or realtime streaming. Do not automatically repunctuate an already satisfactory transcript.</p>
+<p data-editorial="next-step">For subtitle delivery, continue with the <a href="/en/blog/generate-subtitles-srt-vtt-from-audio-video.html">SRT, VTT and listening-review workflow</a>, treating text editing and timing checks as separate steps.</p>
+<details><summary>Reproduction environment and implementation</summary><p>Run on 2026-09-10 with FunASR 1.4.15 and PyTorch / torchaudio 2.10.0 CPU. ModelScope artifact: <a href="https://modelscope.cn/models/iic/punc_ct-transformer_cn-en-common-vocab471067-large">iic/punc_ct-transformer_cn-en-common-vocab471067-large</a>, cached revision <code>master</code>. That revision can change; it is not an immutable weight pin. The observed <code>model.pt</code> SHA256 is <code>7176cae922a872e130e6b88aef9a1153581711baf79c9124c7c95be383cd6f81</code>. Check code and weight licensing separately in the repository and model card; this article is not an authorization statement.</p><p>See the pinned <a href="https://github.com/modelscope/FunASR/blob/83a3e3dc9ceb7b70dd3327c8c9b7a79bdb8f3a8d/funasr/models/ct_transformer/model.py#L382">case and sentence-ending implementation</a> and <a href="https://github.com/modelscope/FunASR/blob/83a3e3dc9ceb7b70dd3327c8c9b7a79bdb8f3a8d/funasr/auto/auto_model.py#L1086">pipeline text reassembly</a>. These observations are not an accuracy, realtime-latency or all-revisions guarantee.</p></details>
+</div></article>
+<footer><div class="container"><a href="https://github.com/modelscope/FunASR">FunASR GitHub</a></div></footer>
+</body>
+</html>

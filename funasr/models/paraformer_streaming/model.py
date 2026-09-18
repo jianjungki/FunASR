@@ -26,7 +26,7 @@ from funasr.utils.load_utils import load_audio_text_image_video, extract_fbank
 
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
-    from torch.cuda.amp import autocast
+    from funasr.utils.amp import autocast
 else:
     # Nothing to do if torch<1.6.0
     @contextmanager
@@ -377,8 +377,11 @@ class ParaformerStreaming(Paraformer):
                     ((seq_lens[li] - same_num[li].sum()).float()) * self.sampling_ratio
                 ).long()
                 if target_num > 0:
+                    index = torch.randperm(
+                        seq_lens[li].item(), device=input_mask.device
+                    )[: target_num.item()]
                     input_mask[li].scatter_(
-                        dim=0, index=torch.randperm(seq_lens[li])[:target_num].cuda(), value=0
+                        dim=0, index=index, value=0
                     )
             input_mask = input_mask.eq(1)
             input_mask = input_mask.masked_fill(~nonpad_positions, False)

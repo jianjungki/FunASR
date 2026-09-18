@@ -2,6 +2,11 @@
 
 ## Install `funasr-onnx`
 
+`funasr-onnx` is a separate distribution from `funasr`. Upgrading `funasr`
+does not update the installed ONNX wrappers. Check their versions separately
+with `python -m pip show funasr-onnx funasr`; use the source installation below
+when a required wrapper fix is newer than the published PyPI package.
+
 install from pip
 
 ```shell
@@ -17,7 +22,7 @@ pip install -U modelscope funasr
 or install from source code
 
 ```shell
-git clone https://github.com/alibaba/FunASR.git
+git clone https://github.com/modelscope/FunASR.git
 cd FunASR/runtime/python/onnxruntime
 pip install -e ./
 # For the users in China, you could install with the command:
@@ -180,9 +185,9 @@ Output: `List[str]`: recognition result
 
 ## Performance benchmark
 
-Please ref to [benchmark](https://github.com/alibaba-damo-academy/FunASR/blob/main/runtime/docs/benchmark_onnx.md)
+Please ref to [benchmark](https://github.com/modelscope/FunASR/blob/main/runtime/docs/benchmark_onnx.md)
 
 ## Acknowledge
 
-1. This project is maintained by [FunASR community](https://github.com/alibaba-damo-academy/FunASR).
+1. This project is maintained by [FunASR community](https://github.com/modelscope/FunASR).
 2. We partially refer [SWHL](https://github.com/RapidAI/RapidASR) for onnxruntime (only for paraformer model).

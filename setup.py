@@ -14,10 +14,14 @@ requirements = {
         "scipy>=1.4.1",
         "librosa",
         "soundfile>=0.12.1",
+        # numpy 2.x is supported; deprecated aliases (np.float, np.int) were
+        # removed from call sites so the package imports and runs on both 1.x and 2.x.
         "numpy",
         "PyYAML>=5.1.2",
         "tqdm",
         "requests",
+        "regex",
+        "websockets>=10.4",
         # Model loading
         "omegaconf>=2.0",
         "hydra-core>=1.3.2",
@@ -35,16 +39,24 @@ requirements = {
         "jaconv",
         # Speaker & evaluation
         "umap_learn",
-        "editdistance>=0.5.2",
+        "rapidfuzz>=3.0.0",
         # Optional (training/enhancement)
         "torch_complex",
         "tensorboardX",
         # PAI/Aliyun
         "oss2",
     ],
+    # knf: kaldi-native-fbank fallback backend used when torchaudio is absent
+    # (e.g. Ascend NPU / aarch64 servers with no matching torchaudio wheel).
+    "knf": [
+        "kaldi-native-fbank",
+    ],
     # train: The modules invoked when training only.
     "train": [
-        "editdistance",
+        "rapidfuzz>=3.0.0",
+    ],
+    "silero": [
+        "silero-vad>=6.0.0",
     ],
     # all: The modules should be optionally installled due to some reason.
     #      Please consider moving them to "install" occasionally
@@ -114,8 +126,21 @@ setup(
     url="https://github.com/modelscope/FunASR",
     author="Speech Lab of Alibaba Group",
     author_email="funasr@list.alibaba-inc.com",
-    description="Industrial-grade speech recognition: 170x realtime, 50+ languages, speaker diarization, emotion detection.",
-    keywords=["speech-recognition", "asr", "speaker-diarization", "vad", "pytorch", "whisper-alternative", "multilingual"],
+    description="OpenAI-compatible speech recognition toolkit with WebSocket streaming, vLLM acceleration, and llama.cpp/GGUF edge runtime.",
+    keywords=[
+        "speech-recognition",
+        "asr",
+        "speaker-diarization",
+        "vad",
+        "pytorch",
+        "whisper-alternative",
+        "multilingual",
+        "openai-compatible",
+        "websocket",
+        "vllm",
+        "gguf",
+        "llama-cpp",
+    ],
     project_urls={
         "Homepage": "https://github.com/modelscope/FunASR",
         "Documentation": "https://modelscope.github.io/FunASR/",
@@ -125,7 +150,16 @@ setup(
     long_description_content_type="text/markdown",
     license="The MIT License",
     packages=find_packages(include=["funasr*"]),
-    package_data={"funasr": ["version.txt"]},
+    package_data={
+        "funasr": [
+            "version.txt",
+            "models/sense_voice/whisper_lib/normalizers/english.json",
+            "models/rwkv_bat/cuda_encoder/*.cpp",
+            "models/rwkv_bat/cuda_encoder/*.cu",
+            "models/rwkv_bat/cuda_decoder/*.cpp",
+            "models/rwkv_bat/cuda_decoder/*.cu",
+        ]
+    },
     install_requires=install_requires,
     setup_requires=setup_requires,
     tests_require=tests_require,
@@ -155,6 +189,7 @@ setup(
             "funasr = funasr.cli:main",
             "funasr-hydra = funasr.bin.inference:main_hydra",
             "funasr-server = funasr.bin.server:main",
+            "funasr-realtime-server = funasr.bin.realtime_ws:cli_main",
             "funasr-train = funasr.bin.train:main_hydra",
             "funasr-train-ds = funasr.bin.train_ds:main_hydra",
             "funasr-export = funasr.bin.export:main_hydra",

@@ -51,7 +51,7 @@ Parameter explanation:
 ## Real-time Speech Recognition
 ### System Architecture Diagram
 
-<div align="left"><img src="images/2pass.jpg" width="600"/></div>
+<div align="left"><img src="images/2pass.jpg" width="600" alt="Two-pass WebSocket transcription flow"/></div>
 
 ### Sending Data from Client to Server
 #### Message Format

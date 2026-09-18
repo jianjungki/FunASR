@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SenseVoice 的情绪标签，该怎么用？ | FunASR</title>
+<meta name="description" content="用真实 CPU 输出区分原始预测、显示文本与评测标签，保留未知结果，不把情绪分类当作人的真实状态。">
+<meta property="og:title" content="SenseVoice 的情绪标签，该怎么用？"><meta property="og:description" content="用真实 CPU 输出区分原始预测、显示文本与评测标签，保留未知结果，不把情绪分类当作人的真实状态。"><meta property="og:type" content="article"><meta property="og:url" content="https://www.funasr.com/blog/sensevoice-emotion-language-detection.html"><meta property="og:image" content="https://www.funasr.com/img/sensevoice-tags-waveform.png">
+<link rel="canonical" href="https://www.funasr.com/blog/sensevoice-emotion-language-detection.html"><link rel="alternate" hreflang="en" href="https://www.funasr.com/en/blog/sensevoice-emotion-language-detection.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"SenseVoice 的情绪标签，该怎么用？","description":"用真实 CPU 输出区分原始预测、显示文本与评测标签，保留未知结果，不把情绪分类当作人的真实状态。","datePublished":"2026-06-19","dateModified":"2026-09-10","author":{"@type":"Organization","name":"FunASR"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://www.funasr.com/blog/sensevoice-emotion-language-detection.html"}}</script>
+<style>body{margin:0;font-family:system-ui,sans-serif;color:#202827;line-height:1.8;background:#fff}*{box-sizing:border-box}.container{max-width:920px;margin:auto;padding:0 24px}a{color:#006a57;text-decoration:underline;text-underline-offset:.15em}.nav{padding:14px 0;border-bottom:1px solid #dce3df}.nav .container{display:flex;gap:20px;align-items:center}.nav-logo{font-weight:700}.nav-links{margin-left:auto}article{padding:48px 0 64px}h1{font-size:2rem;line-height:1.3;letter-spacing:0}h2{font-size:1.4rem;margin-top:36px;letter-spacing:0}.lead{font-size:1.1rem}.meta,figcaption{color:#515c56;font-size:.875rem}figure{margin:24px 0}figure img{display:block;max-width:100%;height:auto}code{overflow-wrap:anywhere}pre{padding:16px;background:#f3f6f5;border:1px solid #dce3df;border-radius:6px;font-size:.875rem;white-space:pre-wrap;overflow-wrap:anywhere}.legacy-page pre[data-example]{white-space:pre-wrap;overflow-wrap:anywhere;padding-top:54px}footer{padding:24px;border-top:1px solid #dce3df}@media(max-width:700px){.container{padding:0 20px}h1{font-size:1.6rem}.nav-links{display:none}}</style>
+</head><body>
+<nav class="nav"><div class="container"><a class="nav-logo" href="/">FunASR</a><div class="nav-links"><a href="/blog/">技术博客</a></div><a href="/en/blog/sensevoice-emotion-language-detection.html">EN</a><a href="/go/github">GitHub</a></div></nav>
+<article><div class="container">
+<h1>SenseVoice 的情绪标签，该怎么用？</h1>
+<p class="meta">2026-09-10 修订 · 技术解读 · 阅读约 5 分钟</p>
+<p class="lead" data-editorial="opening">你把一段客服录音转成文字，发现前面还有 ANGRY 或 NEUTRAL。能不能据此自动判断客户是否生气？先别急着给人下结论：这些是模型对音频片段的分类预测。接入应用前，先分清原始预测、显示文本和评测依据。</p>
+<p data-editorial="boundary">情绪标签不是人的真实心理状态、身份或诊断，也不是已经校准的置信度。它可以作为经过验证后的辅助检索线索，但不能单独决定员工考核、客户处置或其他影响人的重要结论。</p>
+<h2>先保留原始结果</h2>
+<p>SenseVoiceSmall 在转写之外还会生成语种、情绪、音频事件及文本规范化标签。下面用短音频观察输出，不接 VAD、不做说话人分离。将有权使用的短录音放到 <code>audio.wav</code>；第一次使用模型名时需要下载权重。</p>
+<p data-editorial="environment">先按维护中的<a data-installation-guide href="/docs/installation.html">安装与环境验证指南</a>准备 CPU 环境，确认 PyTorch 与 torchaudio 可以成功导入且版本配套。<code>python -m pip install "funasr==1.4.15"</code> 只固定 FunASR 包，不是完整的新环境安装步骤。</p>
+<pre data-example="recognize">from funasr import AutoModel
+from funasr.utils.postprocess_utils import rich_transcription_postprocess
+
+model = AutoModel(
+    model="iic/SenseVoiceSmall",
+    device="cpu",
+    disable_update=True,
+)
+raw = model.generate(
+    input="audio.wav",
+    language="auto",
+    use_itn=True,
+    ban_emo_unk=False,
+)[0]["text"]
+
+print("raw:", raw)
+print("display:", rich_transcription_postprocess(raw))</pre>
+<p>在 Linux CPU、FunASR 1.4.15、PyTorch/torchaudio 2.10.0 环境中，用官方<a href="https://isv-data.oss-cn-hangzhou.aliyuncs.com/ics/MaaS/ASR/test_audio/asr_example_zh.wav">中文短音频</a>得到下面的真实读数。音频约 5.55 秒，使用已缓存的 SenseVoiceSmall 权重；这是一项功能检查，不是情绪准确率或速度 benchmark。</p>
+<figure><img src="/img/sensevoice-tags-waveform.png" width="1800" height="450" alt="官方中文短音频的实际波形，横轴为时间，纵轴为振幅"><figcaption>输入音频的真实波形，不是情绪强度、模型注意力或置信度曲线。</figcaption></figure>
+<p><strong>原始预测</strong></p>
+<pre data-example="raw-output">&lt;|zh|&gt;&lt;|NEUTRAL|&gt;&lt;|Speech|&gt;&lt;|withitn|&gt;欢迎大家来体验达摩院推出的语音识别模型。</pre>
+<p><strong>用于显示的文本</strong></p>
+<pre data-example="display-output">欢迎大家来体验达摩院推出的语音识别模型。</pre>
+<p><code>zh</code> 是这里预测的语种，<code>NEUTRAL</code> 是情绪类别，<code>Speech</code> 是音频事件标签，<code>withitn</code> 表示文本规范化模式。它们都不是“识别正确”的证明；<code>Speech</code> 也不保证整段没有音乐或噪声。这个例子没有人工情绪真值，不能据此计算情绪准确率。</p>
+<h2>显示文本不能当评测标签</h2>
+<p><code>rich_transcription_postprocess()</code> 让结果适合显示，并不承诺只保留纯文字。它可能去掉控制标签，也可能把情绪或事件转成 emoji。下面是<strong>人为构造的标签字符串</strong>，不是另一段录音的预测；用同一版本后处理函数即可验证区别。</p>
+<pre data-example="synthetic-display">输入: &lt;|zh|&gt;&lt;|HAPPY|&gt;&lt;|Speech|&gt;&lt;|withitn|&gt;今天放假。
+显示: 今天放假。😊</pre>
+<p>把显示文本切开、寻找第几个词来当情绪类别，会丢失或误读标签。先保存 <code>res[0]["text"]</code> 这类原始输出，再按任务解析；显示版本单独存储。多个切片可能给出不同预测，也不能把整段的一个标签当作每个时刻或每个说话人的状态。</p>
+<p>不要把 <code>ban_emo_unk=True</code> 理解为“更准确”。<a href="https://github.com/FunAudioLLM/SenseVoice/blob/4482962437ce8ebd1f0ac5b6793d2f82d2e2955d/model.py#L858">实现</a>只是屏蔽未知情绪 token 的解码分数；不允许输出未知，不等于模型获得了新证据。示例显式保留未知选项，未知或无法解析的结果应进入检查流程，不能默默改成 NEUTRAL。</p>
+<h2>需要分数时，先固定评测口径</h2>
+<p><a href="https://github.com/FunAudioLLM/SenseVoice/issues/212">CASIA / RAVDESS 社区复现问题</a>仍未解决；本文没有复现论文分数，也没有访问或分发这些数据集。比较前先固定合法数据集版本、样本清单、类别映射、权重散列、软件版本和指标定义。</p>
+<p>现有 SER 工具从原始输出读取六类评测标签，规范化 fear/fearful、surprise/surprised，遇到没有受支持标签的输出会报错，而不是静默丢样本。这个六类评测契约<strong>不是完整模型词表</strong>，不能直接当作任何应用的通用情绪解析器。</p>
+<p>它同时报告 WA（所有样本的准确率）与 UA（清单中各类别召回率的平均）。一个<strong>合成计数例子</strong>：9 条 neutral、1 条 angry 全部预测为 neutral，WA 是 90%，UA 只有 50%。这只是用维护中的指标函数核验口径，不是 SenseVoice 的测量结果。一个总分可能掩盖少数类别完全失败。</p>
+<p>应用侧先抽样回听，覆盖自己的语言、噪声、设备与说话风格，记录误报和未知，再决定是否采用辅助标签。需要“谁在何时说了什么”，应走<a href="/blog/meeting-transcript-acceptance.html">说话人及时间覆盖的验收路径</a>，不是从情绪 tag 推断身份。</p>
+<p data-editorial="next-step">下一步，打开固定版本的<a href="https://github.com/FunAudioLLM/SenseVoice/blob/4482962437ce8ebd1f0ac5b6793d2f82d2e2955d/benchmarks/ser/README.md">SenseVoice SER 评测说明</a>，从你的合法样本清单开始，保留原始输出与未通过的样本。</p>
+</div></article><footer><div class="container">FunASR · 技术解读</div></footer>
+</body></html>

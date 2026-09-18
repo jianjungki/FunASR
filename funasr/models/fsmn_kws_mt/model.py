@@ -6,7 +6,7 @@
 import time
 import torch
 import logging
-from torch.cuda.amp import autocast
+from funasr.utils.amp import autocast
 from typing import Union, Dict, List, Tuple, Optional
 
 from funasr.register import tables
@@ -325,22 +325,24 @@ class FsmnKWSMT(torch.nn.Module):
             is_deted, det_keyword, det_score = detect_result[0], detect_result[1], detect_result[2]
 
             if is_deted:
-                self.writer["detect"][key[i]] = "detected " + det_keyword + " " + str(det_score)
                 det_info = "detected " + det_keyword + " " + str(det_score)
             else:
-                self.writer["detect"][key[i]] = "rejected"
                 det_info = "rejected"
+
+            if kwargs.get("output_dir") is not None:
+                self.writer["detect"][key[i]] = det_info
 
             x2 = encoder_out2[i, :encoder_out_lens[i], :]
             detect_result2 = self.kws_decoder2.decode(x2)
             is_deted2, det_keyword2, det_score2 = detect_result2[0], detect_result2[1], detect_result2[2]
 
             if is_deted2:
-                self.writer["detect2"][key[i]] = "detected " + det_keyword2 + " " + str(det_score2)
                 det_info2 = "detected " + det_keyword2 + " " + str(det_score2)
             else:
-                self.writer["detect2"][key[i]] = "rejected"
                 det_info2 = "rejected"
+
+            if kwargs.get("output_dir") is not None:
+                self.writer["detect2"][key[i]] = det_info2
 
             result_i = {"key": key[i], "text": det_info, "text2": det_info2}
             results.append(result_i)

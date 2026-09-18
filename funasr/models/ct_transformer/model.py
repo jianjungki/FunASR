@@ -23,7 +23,7 @@ try:
 except:
     pass
 if LooseVersion(torch.__version__) >= LooseVersion("1.6.0"):
-    from torch.cuda.amp import autocast
+    from funasr.utils.amp import autocast
 else:
     # Nothing to do if torch<1.6.0
     @contextmanager
@@ -46,8 +46,9 @@ class CTTransformer(torch.nn.Module):
     Output: {"key": "...", "text": "punctuated text", "punc_array": Tensor}
     punc_array encoding: 1=none, 2=comma(，), 3=period(。), 4=question(？)
 
-    Note: Not needed for Fun-ASR-Nano/SenseVoice/Qwen3-ASR (they output punctuation natively).
-    Only required for Paraformer models.
+    For unpunctuated SenseVoiceSmall or Paraformer output, configure punc_model
+    when punctuation is needed. Models that already emit punctuation may not
+    need this postprocessor.
 
     Author: Speech Lab of DAMO Academy, Alibaba Group
     CT-Transformer: Controllable time-delay transformer for real-time punctuation prediction and disfluency detection
@@ -416,11 +417,15 @@ class CTTransformer(torch.nn.Module):
                     new_mini_sentence_punc_out = new_mini_sentence_punc[:-1] + [
                         self.sentence_end_id
                     ]
+                    if len(punctuations):
+                        punctuations[-1] = self.sentence_end_id
                 elif new_mini_sentence[-1] == ",":
                     new_mini_sentence_out = new_mini_sentence[:-1] + "."
                     new_mini_sentence_punc_out = new_mini_sentence_punc[:-1] + [
                         self.sentence_end_id
                     ]
+                    if len(punctuations):
+                        punctuations[-1] = self.sentence_end_id
                 elif (
                     new_mini_sentence[-1] != "。"
                     and new_mini_sentence[-1] != "？"
@@ -431,7 +436,7 @@ class CTTransformer(torch.nn.Module):
                         self.sentence_end_id
                     ]
                     if len(punctuations):
-                        punctuations[-1] = 2
+                        punctuations[-1] = self.sentence_end_id
                 elif (
                     new_mini_sentence[-1] != "."
                     and new_mini_sentence[-1] != "?"
@@ -442,7 +447,7 @@ class CTTransformer(torch.nn.Module):
                         self.sentence_end_id
                     ]
                     if len(punctuations):
-                        punctuations[-1] = 2
+                        punctuations[-1] = self.sentence_end_id
             # keep a punctuations array for punc segment
             if punc_array is None:
                 punc_array = punctuations

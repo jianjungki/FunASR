@@ -1,12 +1,35 @@
 # Pretrained Models on Huggingface
 
 ## Model License
--  Apache License 2.0
+The FunASR toolkit uses the [MIT software license](../LICENSE). Model weights
+have separate terms: check the exact checkpoint's model card, license file and
+revision before use or redistribution. The [FunASR model agreement](../MODEL_LICENSE)
+applies only to models whose published terms adopt it, not every entry in this
+catalogue. Third-party models, including OpenMOSS MOSS-Transcribe-Diarize, retain
+their original authorship and model-specific licenses.
+
+For model selection and deployment boundaries, start with the
+[Model Zoo guide](./readme.md) and [MOSS integration](../docs/moss_transcribe_diarize.md).
 
 ## Model Zoo
 Here we provided several pretrained models on different datasets. The details of models and datasets can be found on [ModelScope](https://www.modelscope.cn/models?page=1&tasks=auto-speech-recognition).
 
 ### Speech Recognition Models
+
+#### Fun-ASR-Nano: choose the checkpoint for your interface
+
+| Checkpoint | Interface | Scope |
+| --- | --- | --- |
+| [Fun-ASR-Nano-2512-hf](https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-2512-hf) | Native Transformers **5.17.0**, `AutoProcessor` + `AutoModelForSpeechSeq2Seq` | Chinese, English, Japanese transcription; no remote Python code, native word timestamps or speaker identities |
+| [Fun-ASR-Nano-2512](https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-2512) | FunASR toolkit `AutoModel` | Original toolkit artifact; not interchangeable with the native export |
+| [Fun-ASR-Nano-2512-vllm](https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-2512-vllm) | Native vLLM | Separate serving conversion and runtime |
+| [Fun-ASR-MLT-Nano-2512](https://huggingface.co/FunAudioLLM/Fun-ASR-MLT-Nano-2512) | FunASR toolkit | Separate 31-language checkpoint, not the zh/en/ja native export |
+
+Start with the [native Transformers guide](../docs/transformers_native.md),
+[online Space](https://huggingface.co/spaces/FunAudioLLM/Fun-ASR-Nano), or
+[batch examples and notebook](https://github.com/QwenAudio/Fun-ASR/tree/main/examples/transformers).
+For a service, follow the [deployment matrix](../docs/deployment_matrix.md).
+
 #### Paraformer Models
 
 |                               Model Name                                | Language |           Training Data            | Vocab Size | Parameter | Offline/Online | Notes                                                                                                                           |
@@ -116,6 +139,12 @@ Here we provided several pretrained models on different datasets. The details of
 [//]: # (| [SOND]&#40;https://www.modelscope.cn/models/damo/speech_diarization_sond-zh-cn-alimeeting-16k-n16k4-pytorch/summary&#41; | AliMeeting &#40;120 hours&#41; |   40.5M    |    Speaker diarization, profiles and records, Chinese |)
 
 [//]: # (| [SOND]&#40;https://www.modelscope.cn/models/damo/speech_diarization_sond-en-us-callhome-8k-n16k4-pytorch/summary&#41;    |  CallHome &#40;60 hours&#41;  |     12M     |    Speaker diarization, profiles and records, English   |)
+
+### Third-party Unified Transcription and Diarization
+
+| Model Name | Publisher | Parameters | Notes |
+|:----------:|:---------:|:----------:|:------|
+| [MOSS-Transcribe-Diarize](https://huggingface.co/OpenMOSS-Team/MOSS-Transcribe-Diarize) | OpenMOSS | See official model card | Third-party Apache-2.0 model. One offline request returns transcription, timestamps, and speaker labels; the FunASR integration does not require an external VAD service. See the [deployment guide](../docs/moss_transcribe_diarize.md). |
 
 ### Timestamp Prediction Models
 
